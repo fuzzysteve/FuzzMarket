@@ -1,5 +1,6 @@
 .content { margin:auto; padding:30px}
 .orders td { padding:4px; text-align:right;}
+.orders tbody tr:nth-child(odd) { background-color: #ccc; }
 .orders { width:100%}
 .aggregates {border-collapse:collapse; border:1px solid}
 .aggregates .sellorders { border:1px solid}

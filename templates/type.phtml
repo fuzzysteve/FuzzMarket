@@ -6,13 +6,17 @@
 <div class="pure-u-1">
  <h2>Sell Orders</h2>
         <table class="orders sellorders">
+        <thead>
             <tr><th>OrderID</th><th>Issued</th><th>Volume Left/Entered</th><th>Minimum Volume</th><th>Price</th><th>Duration</th><th>Station Name</th><th>Region Name</th></tr>
+        </thead>
+        <tbody>
             {% for order in sellorders%}
             <tr><td><a href="/history/{{order.orderID}}" class="orderhistory">{{order.orderID}}</a></td><td>{{order.issued}}</td><td>{{order.volume|number_format(0, '.', ',')}}/{{order.volumeEntered|number_format(0, '.', ',')}}</td><td>{{order.minVolume|number_format(0, '.', ',')}}</td><td>{{order.price|number_format(2, '.', ',')}}</td>
             <td>{{order.duration}}</td><td><a href="/station/{{order.stationID}}/type/{{type}}/" class="typelink stationlink">{{order.stationName}}</a></td><td><a href="/region/{{order.region}}/type/{{type}}/" class="typelink regionl ink">{{order.regionName}}</a></td></tr>
             {% else %}
             <tr><td>No Orders</td></tr>
             {% endfor %}
+        </tbody>
         </table>
 </div>
 
@@ -20,13 +24,17 @@
 <div class="pure-u-1">
 <h2>Buy Orders</h2>
         <table class="orders buyorders">
+        <thead>
             <tr><th>OrderID</th><th>Issued</th><th>Volume Left/Entered</th><th>Minimum Volume</th><th>Price</th><th>Range</th><th>Duration</th><th>Station Name</th><th>Region Name</th></tr>
+        </thead>
+        <tbody>
             {% for order in buyorders%}
             <tr><td><a href="/history/{{order.orderID}}" class="orderhistory">{{order.orderID}}</a></td><td>{{order.issued}}</td><td>{{order.volume|number_format(0, '.', ',')}}/{{order.volumeEntered|number_format(0, '.', ',')}}</td><td>{{order.minVolume|number_format(0, '.', ',')}}</td><td>{{order.price|number_format(2, '.', ',')}}</td><td>{{order.range}}</td>
             <td>{{order.duration}}</td><td><a href="/station/{{order.stationID}}/type/{{type}}/" class="typelink stationlink">{{order.stationName}}</a></td><td><a href="/region/{{order.region}}/type/{{type}}/" class="typelink regionlink">{{order.regionName}}</a></td></tr>
             {% else %}
             <tr><td>No Orders</td></tr>
             {% endfor %}
+        </tbody>
         </table>
 </div>
 </div>

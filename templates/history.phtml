@@ -7,13 +7,17 @@
 <div class="pure-g">
 <div class="pure-u-1">
         <table class="orders sellorders">
+        <thead>
             <tr><th>OrderID</th><th>OrderSet</th><th>Issued</th><th>Volume Left/Entered</th><th>Minimum Volume</th><th>Price</th><th>Duration</th><th>Station Name</th><th>Region Name</th></tr>
+        </thead>
+        <tbody>
             {% for order in sellorders%}
             <tr><td>{{order.orderID}}</td><td>{{order.orderSet}}</td><td>{{order.issued}}</td><td>{{order.volume|number_format(0, '.', ',')}}/{{order.volumeEntered|number_format(0, '.', ',')}}</td><td>{{order.minVolume|number_format(0, '.', ',')}}</td><td>{{order.price|number_format(2, '.', ',')}}</td>
             <td>{{order.duration}}</td><td>{{order.stationName}}</td><td>{{order.regionName}}</td></tr>
             {% else %}
             <tr><td>No Orders Anywhere</td></tr>
             {% endfor %}
+        </tbody>
         </table>
 </div>
 </div>
@@ -22,13 +26,17 @@
 <div class="pure-g">
 <div class="pure-u-1">
         <table class="orders buyorders">
+        <thead>
             <tr><th>OrderID</th><th>OrderSet</th><th>Issued</th><th>Volume Left/Entered</th><th>Minimum Volume</th><th>Price</th><th>Range</th><th>Duration</th><th>Station Name</th><th>Region Name</th></tr>
+        </thead>
+        <tbody>
             {% for order in buyorders%}
             <tr><td>{{order.orderID}}</td><td>{{order.orderSet}}</td><td>{{order.issued}}</td><td>{{order.volume|number_format(0, '.', ',')}}/{{order.volumeEntered|number_format(0, '.', ',')}}</td><td>{{order.minVolume|number_format(0, '.', ',')}}</td><td>{{order.price|number_format(2, '.', ',')}}</td><td>{{order.range}}</td>
             <td>{{order.duration}}</td><td>{{order.stationName}}</td><td>{{order.regionName}}</td></tr>
             {% else %}
             <tr><td>No Orders Anywhere</td></tr>
             {% endfor %}
+        </tbody>
         </table>
 </div>
 </div>
