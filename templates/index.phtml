@@ -1,0 +1,54 @@
+{% extends "base.phtml" %}
+
+
+{% block title %}Fuzzwork Market Data{% endblock %}
+
+{% block content %}
+<div class="content">
+<div class="pure-g">
+<div class="pure-u-1">
+<h1 class="title">Fuzzwork Market Data</h1>
+</div>
+</div>
+<div class="pure-g">
+<div class="pure-u-1-1">
+<h2>Forge Aggregates</h2>
+<table class="aggregates">
+<colgroup>
+<col>
+<col span=8 class="buyorders">
+<col span=8 class="sellorders">
+</colgroup>
+<thead>
+<tr><th></th><th colspan=8>Buy</th><th colspan=8>Sell</th></tr>
+<tr><th>Type</th>
+<th>Weighted Average</th><th>Max Price</th><th>Min Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Buy Average</th>
+<th>Weighted Average</th><th>Max Price</th><th>Min Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Sell Average</th>
+</thead>
+<tbody>
+</tr>
+{% for aggregate in maggs %}
+    <tr><td>{{types[loop.index0]}}</td>
+        <td>{{aggregate['true'][0]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['true'][1]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['true'][2]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['true'][3]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['true'][4]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['true'][5]|number_format(0, '.', ',')}}</td>
+        <td>{{aggregate['true'][6]|number_format(0, '.', ',')}}</td>
+        <td>{{aggregate['true'][7]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['false'][0]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['false'][1]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['false'][2]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['false'][3]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['false'][4]|number_format(2, '.', ',')}}</td>
+        <td>{{aggregate['false'][5]|number_format(0, '.', ',')}}</td>
+        <td>{{aggregate['false'][6]|number_format(0, '.', ',')}}</td>
+        <td>{{aggregate['false'][7]|number_format(2, '.', ',')}}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+{% endblock %}

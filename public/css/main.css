@@ -1,0 +1,11 @@
+.content { margin:auto; padding:30px}
+.orders td { padding:4px; text-align:right;}
+.orders { width:100%}
+.aggregates {border-collapse:collapse; border:1px solid}
+.aggregates .sellorders { border:1px solid}
+.aggregates .buyorders { border:1px solid}
+.aggregates td {text-align:right; padding:1px;}
+.aggregates tbody tr:nth-child(odd) { background-color: #ccc; }
+.title { text-align:center}
+.ui-autocomplete { max-height: 100px; overflow-y: auto;overflow-x: hidden;  }
+.ui-helper-hidden-accessible { position: absolute; left:-999em; }

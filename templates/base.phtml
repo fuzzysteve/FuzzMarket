@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>{% block title %}{% endblock %}</title>
+        <link rel="stylesheet" href="/css/main.css">
+        <link rel="stylesheet" href="/css/pure-min.css">
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+        <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+        <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {% block extrahead %}{% endblock %}
+    </head>
+    <body>
+    <div class="pure-menu pure-menu-horizontal">
+        <a href="/" class="pure-menu-heading pure-menu-link">Fuzzwork Market Data</a>
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item"><a href="/hub/" class="pure-menu-link">Market Hubs</a></li>
+            <li class="pure-menu-item"><a href="/region/" class="pure-menu-link">Regions</a></li>
+            <li class="pure-menu-item"><a href="/type/" class="pure-menu-link">Types</a></li>
+            <li class="pure-menu-item"><a href="/station/" class="pure-menu-link">Stations</a></li>
+            <li class="pure-menu-item"><a href="/aggregate/" class="pure-menu-link">Aggregates</a></li>
+            <li class="pure-menu-item"><a href="/api/" class="pure-menu-link">API</a></li>
+        </ul>
+    </div>
+        {% block content %}{% endblock %}
+<footer>
+EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. All other trademarks are the property of their respective owners. EVE Online, the EVE logo, EVE and all associated logos and designs are the intellectual property of CCP hf. All artwork, screenshots, characters, vehicles, storylines, world facts or other recognizable features of the intellectual property relating to these trademarks are likewise the intellectual property of CCP hf. CCP hf. has granted permission to market.fuzzwork.co.uk to use EVE Online and all associated logos and designs for promotional and information purposes on its website but does not endorse, and is not in any way affiliated with, market.fuzzwork.co.uk. CCP is in no way responsible for the content on or functioning of this website, nor can it be liable for any damage arising from the use of this website.
+</footer>
+        {% block footercontent %}{% endblock %}
+    </body>
+</html>
+
