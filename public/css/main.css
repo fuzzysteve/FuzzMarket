@@ -1,4 +1,6 @@
-.content { margin:auto; padding:30px}
+html, button, input, select, textarea, .pure-g [class *= "pure-u"] {font-family: 'Electrolize', sans-serif !important;}
+table {font-family: 'Source Code Pro' !important;}
+.content { margin:auto; padding:30px;}
 .orders td { padding:4px; text-align:right;}
 .orders tbody tr:nth-child(odd) { background-color: #ccc; }
 .orders { width:100%}
@@ -10,3 +12,14 @@
 .title { text-align:center}
 .ui-autocomplete { max-height: 100px; overflow-y: auto;overflow-x: hidden;  }
 .ui-helper-hidden-accessible { position: absolute; left:-999em; }
+
+.stationstat{ width:80%}
+.stationstat td { padding:4px;}
+.alignright {text-align:right;}
+.fixedbutton {position: fixed; top: 30px; right: 50px; background-color:lightgray;z-index:200;}
+footer {margin:30px;}
+
+a:link { color: black; text-decoration: underline;}
+a:visited { color: darkgray; text-decoration: underline;}
+a:hover { color: darkblue; text-decoration: underline;}
+a:active { color: darkred; text-decoration: underline;}

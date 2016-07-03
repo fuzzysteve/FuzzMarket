@@ -13,6 +13,8 @@ import re
 import pandas
 import numpy
 import redis
+import json
+import os
 
 
 import logging
@@ -38,7 +40,7 @@ def RateLimited(maxPerSecond):
 
     
     
-def processData(result,orderwriter,ordersetid):
+def processData(result,orderwriter,ordersetid,connection,orderTable):
     
     try:
         m=re.search('/(\d+)/',result.url)
@@ -63,6 +65,7 @@ def processData(result,orderwriter,ordersetid):
                                     regionid,
                                     ordersetid]
                                 )
+
             logging.info('{}: next page {}'.format(result.url,orders.get('next',{}).get('href',None)))
             return {'retry':0,'url':orders.get('next',{}).get('href',None)}
         else:
@@ -86,7 +89,7 @@ def getData(requestsConnection,url,retry):
 
 
 if __name__ == "__main__":
-    engine = create_engine('postgresql+psycopg2://marketdata:marketdatapass@localhost/marketdata', echo=False)
+    engine = create_engine('postgresql+psycopg2://marketdata:marketdatapass@localhost/marketdata?application_name=aggloader', echo=False)
     metadata = MetaData()
     connection = engine.connect()
     
@@ -146,7 +149,7 @@ if __name__ == "__main__":
     Index("aggregates1",aggregates.c.region,aggregates.c.typeID,aggregates.c.orderSet)
 
 
-    metadata.create_all(engine,checkfirst=True)
+    #metadata.create_all(engine,checkfirst=True)
 
     urls=[]
 
@@ -231,13 +234,13 @@ if __name__ == "__main__":
         # Loop through the urls in batches
         while len(urls)>0:
             futures=[]
-            logging.warn("Loop restarting");
+            logging.warn("Loop restarting {}".format(ordersetid));
             for url in urls:
                 logging.info('URL:{}  Retry:{}'.format(url['url'],url['retry']));
                 futures.append(getData(session,url['url'],url['retry']))
             urls=[]
             for result in as_completed(futures):
-                presult=processData(result,orderwriter,ordersetid)
+                presult=processData(result,orderwriter,ordersetid,connection,orderTable)
                 if presult['retry']==1:
                     urls.append(presult)
                     logging.info("adding {} to retry {}".format(presult.url,presult.retry))
@@ -246,26 +249,26 @@ if __name__ == "__main__":
                     urls.append(presult)
 
 
-    logging.warn("Loading Data File");
-    connection.execute("""copy orders("orderID","typeID",issued,buy,volume,"volumeEntered","minVolume",price,"stationID",range,duration,region,"orderSet") from '/tmp/orderset-{}.csv'""".format(ordersetid))
-    logging.warn("Complete load");
+    logging.warn("Loading Data File {}".format(ordersetid));
+    connection.execute("""copy orders_{}("orderID","typeID",issued,buy,volume,"volumeEntered","minVolume",price,"stationID",range,duration,region,"orderSet") from '/tmp/orderset-{}.csv'""".format((int(ordersetid)/100)%10,ordersetid))
+    logging.warn("Complete load {}".format(ordersetid));
     trans.commit()
     
 
 
-    logging.warn("Pandas populating sell");
+    logging.warn("Pandas populating sell {}".format(ordersetid));
     
     sell=pandas.read_sql_query("""select region||'|'||"typeID"||'|'||buy as what,price,sum(volume) volume from orders  where "orderSet"={} and buy=False group by region,"typeID",buy,price order by region,"typeID",price asc""".format(ordersetid),connection);
-    logging.warn("Pandas populating buy");
+    logging.warn("Pandas populating buy {}".format(ordersetid));
     buy=pandas.read_sql_query("""select region||'|'||"typeID"||'|'||buy as what,price,sum(volume) volume from orders  where "orderSet"={} and buy=True group by region,"typeID",buy,price order by region,"typeID",price desc""".format(ordersetid),connection);
-    logging.warn("Pandas populating aggregates");
+    logging.warn("Pandas populating aggregates {}".format(ordersetid));
     aggregates=pandas.read_sql_query("""select region||'|'||"typeID"||'|'||buy as what,"orderSet",region,"typeID",buy,sum(price*volume)/sum(volume) as weightedaverage,max(price) as maxval,min(price) as minval,coalesce(stddev(price),0.001) as stddev,quantile(price,0.5) as median,sum(volume) volume,count(*) numorders from orders where "orderSet"={} group by "orderSet","typeID",region,buy""".format(ordersetid),connection);
     aggregates=aggregates.set_index('what')
 
-    logging.warn("Pandas populated");
+    logging.warn("Pandas populated {}".format(ordersetid));
 
 
-    logging.warn("Sell Math running");
+    logging.warn("Sell Math running {}".format(ordersetid));
     sell['min']=sell.groupby('what')['price'].transform('min')
     sell['volume']=sell.apply(lambda x: 0 if x['price']>x['min']*100 else x['volume'],axis=1)
     sell['cumsum']=sell.groupby('what')['volume'].apply(lambda x: x.cumsum())
@@ -275,7 +278,7 @@ if __name__ == "__main__":
     sell['applies']=sell.apply(lambda x: x['volume'] if x['cumsum']<=x['fivepercent'] else x['fivepercent']-x['lastsum'],axis=1)
     num = sell._get_numeric_data()
     num[num < 0] = 0
-    logging.warn("Buy Math running");
+    logging.warn("Buy Math running {}".format(ordersetid));
     buy['max']=buy.groupby('what')['price'].transform('max')
     buy['volume']=buy.apply(lambda x: 0 if x['price']<x['max']/100 else x['volume'],axis=1)
     buy['cumsum']=buy.groupby('what')['volume'].apply(lambda x: x.cumsum())
@@ -287,7 +290,7 @@ if __name__ == "__main__":
     num[num < 0] = 0
     
     
-    logging.warn("Aggregating");
+    logging.warn("Aggregating {}".format(ordersetid));
     buyagg=buy.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
     sellagg=sell.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
     five=pandas.concat([buyagg, sellagg], axis=1,keys=['buy','sell']).reset_index()
@@ -296,9 +299,9 @@ if __name__ == "__main__":
     agg2=pandas.concat([aggregates,five],axis=1)
     
     
-    logging.warn("Outputing to DB");
+    logging.warn("Outputing to DB {}".format(ordersetid));
     agg2.to_sql('aggregates',connection,index=False,if_exists='append')
-    logging.warn("Outputing to Redis");
+    logging.warn("Outputing to Redis {}".format(ordersetid));
     redisdb = redis.StrictRedis()
     pipe = redisdb.pipeline()
     count=0;
@@ -309,4 +312,13 @@ if __name__ == "__main__":
             count=0
             pipe.execute()
     pipe.execute()
-    logging.warn("Complete")
+
+    
+    logging.warn("Storing some stats for the front page {}".format(ordersetid));
+    result=connection.execute("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=false group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid)).fetchone()
+    redisdb.set("fp-sell",json.dumps(result[0]));
+    result=connection.execute("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=true group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid)).fetchone()
+    redisdb.set("fp-buy",json.dumps(result[0]));
+    logging.warn("Complete {}".format(ordersetid))
+
+    os.rename("""/tmp/orderset-{}.csv""".format(ordersetid),"""/opt/orderbooks/orderset-{}.csv""".format(ordersetid))

@@ -20,10 +20,10 @@
 <col span=8 class="sellorders">
 </colgroup>
 <thead>
-<tr><th></th><th colspan=8>Buy</th><th colspan=8>Sell</th></tr>
+<tr><th></th><th colspan=7>Buy</th><th colspan=7>Sell</th></tr>
 <tr><th>Type</th>
-<th>Weighted Average</th><th>Max Price</th><th>Min Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Buy Average</th>
-<th>Weighted Average</th><th>Max Price</th><th>Min Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Sell Average</th>
+<th>Weighted Average</th><th>Max Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Buy Average</th>
+<th>Weighted Average</th><th>Min Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Sell Average</th>
 </thead>
 <tbody>
 </tr>
@@ -31,14 +31,12 @@
     <tr><td>{{types[loop.index0]}}</td>
         <td>{{aggregate['true'][0]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][1]|number_format(2, '.', ',')}}</td>
-        <td>{{aggregate['true'][2]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][3]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][4]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][5]|number_format(0, '.', ',')}}</td>
         <td>{{aggregate['true'][6]|number_format(0, '.', ',')}}</td>
         <td>{{aggregate['true'][7]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][0]|number_format(2, '.', ',')}}</td>
-        <td>{{aggregate['false'][1]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][2]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][3]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][4]|number_format(2, '.', ',')}}</td>
@@ -47,6 +45,26 @@
         <td>{{aggregate['false'][7]|number_format(2, '.', ',')}}</td></tr>
 {% endfor %}
 </tbody>
+</table>
+</div>
+</div>
+<div class="pure-g">
+<div class="pure-u-1-2">
+<h2>Top 10 Stations for Sell orders</h2>
+<table class="stationstat"> 
+<tr><th>Station</th><th>Number of Orders</th><th>Volume</th></tr>
+{% for station in fpsell %}
+    <tr><td class="station">{{station.stationName}}</td><td class="alignright">{{station.coun}}</td><td class="alignright">{{station.vol}}</td></tr>
+{% endfor %}
+</table>
+</div>
+<div class="pure-u-1-2">
+<h2>Top 10 Stations for Buy orders</h2>
+<table class="stationstat">
+<tr><th>Station</th><th>Number of Orders</th><th>Volume</th></tr>
+{% for station in fpbuy %}
+    <tr><td class="station">{{station.stationName}}</td><td class="alignright">{{station.coun}}</td><td class="alignright">{{station.vol}}</td></tr>
+{% endfor %}
 </table>
 </div>
 </div>

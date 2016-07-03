@@ -1,0 +1,24 @@
+{% extends "base.phtml" %}
+
+
+{% block title %}Fuzzwork Market Data - About{% endblock %}
+
+{% block content %}
+<div class="content">
+<div class="pure-g">
+<div class="pure-u-1">
+<h1 class="title">Fuzzwork Market Data</h1>
+</div>
+</div>
+<div class="pure-g">
+<div class="pure-u-1-1">
+<p>This site is a market data site for <a href="http://www.eveonline.com">EVE Online</a></p>
+<p>It works by getting the full order book for New Eden, once every 30 minutes, then processing it down to produce aggregate data. The code can be found at <a href="https://github.com/fuzzysteve/FuzzMarket">https://github.com/fuzzysteve/FuzzMarket</a></p>
+<p>Order data is retained for 2 days, so you can investigate the history of an order, to see how it changes between the 30 minute snapshots.</p>
+<p>An api will be provided to access the aggregates at will.</p>
+<p>The entire orderbook, for a yet to be determined time, will be available to download.</p>
+<p>As I'm thinking of moving over to an SSD based server for this, to cut down on the slowdown when the market orders are imported, I've put up a <a href="https://www.patreon.com/fuzzysteve">Patreon page</a>. You won't get anything more than a fuzzy feeling, and my thanks, but maybe that's enough?</p>
+</div>
+</div>
+</div>
+{% endblock %}

@@ -12,8 +12,70 @@
 </div>
 <div class="pure-g">
 <div class="pure-u-1-1">
-<p>Currently no API. This will change. You'll be able to request aggregates for any specific region, for a list of typeids.</p>
-<p>Any further API, well, ask. I might do it.</p>
+<p>Wheee! API.</p>
+<p>Just a simple one at the moment. Region only. (It may remain this way. Still thinking about it)</p>
+<p>Formatted this way</p>
+<pre>https://market.fuzzwork.co.uk/aggregates/?region=10000002&types=34,35,36,37,38,39,40</pre>
+<p>Returning a json dataset looking like (this is truncated) the following</p>
+<pre>
+{
+  "34": {
+    "buy": {
+      "weightedAverage": "4.02878502065",
+      "max": "5.95",
+      "min": "0.01",
+      "stddev": "1.62036217159",
+      "median": "5.0",
+      "volume": "10024734026.0",
+      "orderCount": "52",
+      "percentile": "5.50168617928"
+    },
+    "sell": {
+      "weightedAverage": "6.60015441538",
+      "max": "2201571.0",
+      "min": "5.01",
+      "stddev": "177420.733866",
+      "median": "6.38",
+      "volume": "25573930856.0",
+      "orderCount": "179",
+      "percentile": "5.92257900667"
+    }
+  },
+  "35": {
+    "buy": {
+      "weightedAverage": "2.95108749592",
+      "max": "9.32",
+      "min": "0.01",
+      "stddev": "2.33386568045",
+      "median": "8.08",
+      "volume": "3567567586.0",
+      "orderCount": "43",
+      "percentile": "8.93197172057"
+    },
+    "sell": {
+      "weightedAverage": "11.8397717552",
+      "max": "88.97",
+      "min": "8.9",
+      "stddev": "6.28077891535",
+      "median": "10.49",
+      "volume": "13983717157.0",
+      "orderCount": "170",
+      "percentile": "9.30539352676"
+    }
+  }
+}
+
+
+</pre>
+<hr>
+<h2>Files</h2>
+<ul>
+{% for file in files%}
+    {% if file != "." and file != ".." %}
+    <li><a href="/orderbooks/{{file|split('/')[3]}}">{{file|split('/')[3]}}</a></li>
+    {% endif %}
+{% endfor %}
+</ul>
 </div>
 </div>
 </div>

@@ -33,7 +33,7 @@
         event.preventDefault();
         $( "#typeid" ).val(ui.item.label);
         window.typeid=ui.item.value;
-        if (window.typeid & window.regionid) {
+        if (window.typeid>0 & window.regionid >0) {
             window.location="https://market.fuzzwork.co.uk/region/"+window.regionid+"/type/"+ui.item.value+"/"
         }
       }
@@ -47,7 +47,7 @@
         event.preventDefault();
         $( "#regionid" ).val(ui.item.label);
         window.regionid=ui.item.value;
-        if (window.typeid & window.regionid) {
+        if (window.typeid >0 & window.regionid>0) {
             window.location="https://market.fuzzwork.co.uk/region/"+window.regionid+"/type/"+ui.item.value+"/"
         }
       }

@@ -1,18 +1,46 @@
 <?php
 // Routes
 
+$app->get('/aggregates/',function ($request, $response, $args) {
+    $redis = new Predis\Client();
+    $aggregate=array();
+    $allGetVars = $request->getQueryParams();
+    $region=$allGetVars['region'];
+    $types=$allGetVars['types'];
+    $ordertype=array("true"=>"buy","false"=>"sell");
+    foreach (explode(",",$types) as $type) {
+        foreach (array("true","false") as $buy) {
+            $details=explode("|",$redis->get($region.'|'.$type."|".$buy));
+            $aggregate[$type][$ordertype[$buy]]=array(
+                "weightedAverage"=>$details[0],
+                "max"=>$details[1],
+                "min"=>$details[2],
+                "stddev"=>$details[3],
+                "median"=>$details[4],
+                "volume"=>$details[5],
+                "orderCount"=>$details[6],
+                "percentile"=>$details[7]
+            );
+        }
+    }
+    $resWithExpires = $this->cache->withExpires($response->withJson($aggregate), time() + 300);
+    return $resWithExpires;
+});
+
+
 
 $app->get('/', function ($request, $response, $args) {
     $redis = new Predis\Client();
     $aggregate=array();
-    foreach (array(34,35,36,37,38,39,40,11399,29668) as $type) {
+    foreach (array(34,35,36,37,38,39,40,11399,29668,40520) as $type) {
         $aggregate[$type]=array();
         foreach (array("true","false") as $buy) {
             $aggregate[$type][$buy]=explode("|",$redis->get('10000002|'.$type."|".$buy));
         }
     }
-
-    $args['types']=array("Tritanium","Pyrite","Mexallon","Isogen","Nocxium","Zydrine","Megacyte","Morphite","PLEX");
+    $args['fpbuy']=json_decode($redis->get('fp-buy'));
+    $args['fpsell']=json_decode($redis->get('fp-sell'));
+    $args['types']=array("Tritanium","Pyrite","Mexallon","Isogen","Nocxium","Zydrine","Megacyte","Morphite","PLEX","Skill Injector");
     $args['maggs']=$aggregate;
     return $this->renderer->render($response, 'index.phtml', $args);
 });
@@ -66,7 +94,15 @@ $app->get('/aggregate/', function ($request, $response, $args) {
     return $this->renderer->render($response, 'aggregate.phtml', $args);
 });
 $app->get('/api/', function ($request, $response, $args) {
+
+    $files=glob('/opt/orderbooks/*.csv.gz');
+    rsort($files);
+    $args['files']=$files;
+
     return $this->renderer->render($response, 'api.phtml', $args);
+});
+$app->get('/about/', function ($request, $response, $args) {
+    return $this->renderer->render($response, 'about.phtml', $args);
 });
 
 $app->get('/type/{type:[0-9]+}/', function ($request, $response, $args) {
