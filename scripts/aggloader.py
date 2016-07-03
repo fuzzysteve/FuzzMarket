@@ -261,10 +261,6 @@ if __name__ == "__main__":
     sell=pandas.read_sql_query("""select region||'|'||"typeID"||'|'||buy as what,price,sum(volume) volume from orders  where "orderSet"={} and buy=False group by region,"typeID",buy,price order by region,"typeID",price asc""".format(ordersetid),connection);
     logging.warn("Pandas populating buy {}".format(ordersetid));
     buy=pandas.read_sql_query("""select region||'|'||"typeID"||'|'||buy as what,price,sum(volume) volume from orders  where "orderSet"={} and buy=True group by region,"typeID",buy,price order by region,"typeID",price desc""".format(ordersetid),connection);
-    logging.warn("Pandas populating aggregates {}".format(ordersetid));
-    aggregates=pandas.read_sql_query("""select region||'|'||"typeID"||'|'||buy as what,"orderSet",region,"typeID",buy,sum(price*volume)/sum(volume) as weightedaverage,max(price) as maxval,min(price) as minval,coalesce(stddev(price),0.001) as stddev,quantile(price,0.5) as median,sum(volume) volume,count(*) numorders from orders where "orderSet"={} group by "orderSet","typeID",region,buy""".format(ordersetid),connection);
-    aggregates=aggregates.set_index('what')
-
     logging.warn("Pandas populated {}".format(ordersetid));
 
 
@@ -291,22 +287,37 @@ if __name__ == "__main__":
     
     
     logging.warn("Aggregating {}".format(ordersetid));
-    buyagg=buy.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
-    sellagg=sell.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
-    five=pandas.concat([buyagg, sellagg], axis=1,keys=['buy','sell']).reset_index()
-    five=five.set_index('index').max(axis=1)
-    five=five.rename('fivepercent')
-    agg2=pandas.concat([aggregates,five],axis=1)
+    sellagg = pandas.DataFrame()
+    sellagg['weightedaverage']=sell.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.volume))
+    sellagg['maxval']=sell.groupby('what')['price'].max()
+    sellagg['minval']=sell.groupby('what')['price'].min()
+    sellagg['stddev']=sell.groupby('what')['price'].std()
+    sellagg['median']=sell.groupby('what')['price'].median()
+    sellagg.fillna(0.01,inplace=True)
+    sellagg['volume']=sell.groupby('what')['volume'].sum()
+    sellagg['numorders']=sell.groupby('what')['price'].count()
+    sellagg['fivepercent']=sell.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
+    buyagg = pandas.DataFrame()
+    buyagg['weightedaverage']=buy.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.volume))
+    buyagg['maxval']=buy.groupby('what')['price'].max()
+    buyagg['minval']=buy.groupby('what')['price'].min()
+    buyagg['stddev']=buy.groupby('what')['price'].std()
+    buyagg['median']=buy.groupby('what')['price'].median()
+    buyagg.fillna(0.01,inplace=True)
+    buyagg['volume']=buy.groupby('what')['volume'].sum()
+    buyagg['numorders']=buy.groupby('what')['price'].count()
+    buyagg['fivepercent']=buy.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
+    agg2=pandas.concat([buyagg,sellagg])
     
     
     logging.warn("Outputing to DB {}".format(ordersetid));
-    agg2.to_sql('aggregates',connection,index=False,if_exists='append')
+    agg2.to_sql('aggregates',connection,index=True,if_exists='append')
     logging.warn("Outputing to Redis {}".format(ordersetid));
     redisdb = redis.StrictRedis()
     pipe = redisdb.pipeline()
     count=0;
     for row in agg2.itertuples():
-        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12]))
+        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]))
         count+=1
         if count>1000:
             count=0
