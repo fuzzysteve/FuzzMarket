@@ -1,14 +1,17 @@
 html, button, input, select, textarea, .pure-g [class *= "pure-u"] {font-family: 'Electrolize', sans-serif !important;}
+body {background-color:#fff1e0}
 table {font-family: 'Source Code Pro' !important;}
 .content { margin:auto; padding:30px;}
 .orders td { padding:4px; text-align:right;}
-.orders tbody tr:nth-child(odd) { background-color: #ccc; }
+.orders th { padding:4px;}
+.subtotal th { padding:4px; text-align:right;}
+.orders tbody tr:nth-child(odd) { background-color: #A890A4; }
 .orders { width:100%}
 .aggregates {border-collapse:collapse; border:1px solid}
 .aggregates .sellorders { border:1px solid}
 .aggregates .buyorders { border:1px solid}
 .aggregates td {text-align:right; padding:1px;}
-.aggregates tbody tr:nth-child(odd) { background-color: #ccc; }
+.aggregates tbody tr:nth-child(odd) { background-color: #A890A4; }
 .title { text-align:center}
 .ui-autocomplete { max-height: 100px; overflow-y: auto;overflow-x: hidden;  }
 .ui-helper-hidden-accessible { position: absolute; left:-999em; }
@@ -19,7 +22,10 @@ table {font-family: 'Source Code Pro' !important;}
 .fixedbutton {position: fixed; top: 30px; right: 50px; background-color:lightgray;z-index:200;}
 footer {margin:30px;}
 
-a:link { color: black; text-decoration: underline;}
-a:visited { color: darkgray; text-decoration: underline;}
-a:hover { color: darkblue; text-decoration: underline;}
-a:active { color: darkred; text-decoration: underline;}
+a:link { color: #3C1C2A; text-decoration: underline;}
+a:visited { color: #CFB9C9; text-decoration: underline;}
+a:hover { color: #6D8406; text-decoration: underline;}
+a:active { color: #B0F9F8; text-decoration: underline;}
+
+.pasteblock { margin:auto;width:70%}
+.pasteblock textarea {width:100%}

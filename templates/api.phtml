@@ -13,9 +13,18 @@
 <div class="pure-g">
 <div class="pure-u-1-1">
 <p>Wheee! API.</p>
-<p>Just a simple one at the moment. Region only. (It may remain this way. Still thinking about it)</p>
-<p>Formatted this way</p>
+<p>Just a simple one at the moment. Regions and 5 the hub stations only.</p>
+<ul>
+<li>Jita 4-4 CNAP - 60003760
+<li>Amarr VIII - 60008494
+<li>Dodixie - 20000389
+<li>Rens - 60004588
+<li>Hek - 60005686
+</ul>
+<p>Formatted one of these ways</p>
 <pre>https://market.fuzzwork.co.uk/aggregates/?region=10000002&types=34,35,36,37,38,39,40</pre>
+<pre>https://market.fuzzwork.co.uk/aggregates/?station=60003760&types=34,35,36,37,38,39,40</pre>
+<p>(Due to how it works, you can give a station as a region, and it will return correctly. These are all precalculated aggregates)</p>
 <p>Returning a json dataset looking like (this is truncated) the following</p>
 <pre>
 {
@@ -64,9 +73,25 @@
     }
   }
 }
-
-
 </pre>
+<p>I <i>highly</i> recommend pulling all the aggregates into one sheet, and then using vlookup to retrieve them. It's more efficient for both you and me</p>
+<p>An example function for use with Google Docs can be found <a href="https://github.com/fuzzysteve/eve-googledocs-script/blob/master/FuzzworkMarket.gs">on my github page</a>. An example of it in use is <a href="https://docs.google.com/spreadsheets/d/1IixV0eNqg19FE6cLzb83G1Ucb0Otl-Jnvm6csAlPKwo/edit?usp=sharing">shared</a> from my google drive</p>
+<p>No real example with Excel I'm afraid. I'd suggest using XLWings to pull out the bits you want. Alternatively use powerquery.</p>
+<h2>Power Query</h2>
+<p>If you have a recent version of Excel, you have powerquery available.</p>
+<ol>
+<li>Open excel and go to a new worksheet
+<li>hit the 'New Query' button on the Data ribbon.
+<li>Go to 'from other sources', and pick from Web
+<li>Give it the url to get the aggregates you want. You'll need to do more research here to make it dynamic
+<li>Hit ok.
+<li>You'll get a list of the type ids, followed by record. 
+<li>on the convert ribbon, hit 'into table'
+<li>Next to value, in the resultant table, you'll see two arrows pointing apart from each other. hit it, and leave the buy and sell ticked. untick 'use original column names as prefix'
+<li>You'll now have two more columns, called buy and sell. split those with that same icon. I'd suggest leaving the original name as a prefix this time.
+<li>Close and load. you're now done.
+<li>Just hit refresh all, when you want to update them. You can, through the connections button on the data ribbon, set the query up to refresh on open, or on a timer. just select it and go to the properties.
+</ol>
 <hr>
 <h2>Files</h2>
 <ul>

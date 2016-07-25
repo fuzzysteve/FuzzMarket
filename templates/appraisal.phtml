@@ -1,0 +1,32 @@
+{% extends "base.phtml" %}
+
+
+{% block title %}Fuzzwork Market Data - Appraisal{% endblock %}
+
+{% block content %}
+<div class="content">
+<div class="pure-g">
+<div class="pure-u-1">
+<h1 class="title">Fuzzwork Market Data appraisal</h1>
+</div>
+</div>
+<div class="pure-g">
+<div class="pure-u-1-1">
+<form action="/appraisal/" method="POST">
+<div class="pasteblock">
+<textarea name="pasteblock" placeholder="Paste a cargo scan, a cut and paste from your assets, inventory or a Contract, to get an appraisal" cols=80 rows=20 class="pasteblock">
+</textarea>
+<br/>
+<select name="region">
+<option value=10000002 selected>The Forge</option>
+<option value=10000043>Domain</option>
+<option value=10000032>Sinq Laison</option>
+<option value=10000042>Metropolis</option>
+<option value=10000030>Heimatar</option>
+<option value=10000069>Black Rise</option><option value=10000055>Branch</option><option value=10000007>Cache</option><option value=10000014>Catch</option><option value=10000051>Cloud Ring</option><option value=10000053>Cobalt Edge</option><option value=10000012>Curse</option><option value=10000035>Deklein</option><option value=10000060>Delve</option><option value=10000001>Derelik</option><option value=10000005>Detorid</option><option value=10000036>Devoid</option><option value=10000039>Esoteria</option><option value=10000064>Essence</option><option value=10000027>Etherium Reach</option><option value=10000037>Everyshore</option><option value=10000046>Fade</option><option value=10000056>Feythabolis</option><option value=10000058>Fountain</option><option value=10000029>Geminate</option><option value=10000067>Genesis</option><option value=10000011>Great Wildlands</option><option value=10000025>Immensea</option><option value=10000031>Impass</option><option value=10000009>Insmother</option><option value=10000017>J7HZ-F</option><option value=10000052>Kador</option><option value=10000049>Khanid</option><option value=10000065>Kor-Azor</option><option value=10000016>Lonetrek</option><option value=10000013>Malpais</option><option value=10000028>Molden Heath</option><option value=10000040>Oasa</option><option value=10000062>Omist</option><option value=10000021>Outer Passage</option><option value=10000057>Outer Ring</option><option value=10000059>Paragon Soul</option><option value=10000063>Period Basis</option><option value=10000066>Perrigen Falls</option><option value=10000048>Placid</option><option value=10000047>Providence</option><option value=10000023>Pure Blind</option><option value=10000050>Querious</option><option value=10000008>Scalding Pass</option><option value=10000044>Solitude</option><option value=10000022>Stain</option><option value=10000041>Syndicate</option><option value=10000020>Tash-Murkon</option><option value=10000045>Tenal</option><option value=10000061>Tenerifis</option><option value=10000038>The Bleak Lands</option><option value=10000033>The Citadel</option><option value=10000034>The Kalevala Expanse</option><option value=10000018>The Spire</option><option value=10000010>Tribute</option><option value=10000004>UUA-F4</option><option value=10000003>Vale of the Silent</option><option value=10000015>Venal</option><option value=10000068>Verge Vendor</option><option value=10000006>Wicked Creek</option></select>
+<input type=submit value="Appraise">
+</div>
+</div>
+</div>
+</div>
+{% endblock %}
