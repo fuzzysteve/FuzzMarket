@@ -13,7 +13,7 @@
         <tbody>
             {% for order in sellorders%}
             <tr><td>{{order.orderID}}</td><td>{{order.orderSet}}</td><td>{{order.issued}}</td><td>{{order.volume|number_format(0, '.', ',')}}/{{order.volumeEntered|number_format(0, '.', ',')}}</td><td>{{order.minVolume|number_format(0, '.', ',')}}</td><td>{{order.price|number_format(2, '.', ',')}}</td>
-            <td>{{order.duration}}</td><td>{{order.stationName}}</td><td>{{order.regionName}}</td></tr>
+            <td>{{order.duration}}</td><td>{{order.stationName|escape}}</td><td>{{order.regionName}}</td></tr>
             {% else %}
             <tr><td>No Orders Anywhere</td></tr>
             {% endfor %}
@@ -32,7 +32,7 @@
         <tbody>
             {% for order in buyorders%}
             <tr><td>{{order.orderID}}</td><td>{{order.orderSet}}</td><td>{{order.issued}}</td><td>{{order.volume|number_format(0, '.', ',')}}/{{order.volumeEntered|number_format(0, '.', ',')}}</td><td>{{order.minVolume|number_format(0, '.', ',')}}</td><td>{{order.price|number_format(2, '.', ',')}}</td><td>{{order.range}}</td>
-            <td>{{order.duration}}</td><td>{{order.stationName}}</td><td>{{order.regionName}}</td></tr>
+            <td>{{order.duration}}</td><td>{{order.stationName|escape}}</td><td>{{order.regionName}}</td></tr>
             {% else %}
             <tr><td>No Orders Anywhere</td></tr>
             {% endfor %}

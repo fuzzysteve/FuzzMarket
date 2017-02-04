@@ -55,7 +55,7 @@
 <table class="stationstat"> 
 <tr><th>Station</th><th>Number of Orders</th><th>Volume</th></tr>
 {% for station in fpsell %}
-    <tr><td class="station">{{station.stationName}}</td><td class="alignright">{{station.coun}}</td><td class="alignright">{{station.vol}}</td></tr>
+    <tr><td class="station">{{station.stationName|escape}}</td><td class="alignright">{{station.coun}}</td><td class="alignright">{{station.vol}}</td></tr>
 {% endfor %}
 </table>
 </div>
@@ -64,7 +64,7 @@
 <table class="stationstat">
 <tr><th>Station</th><th>Number of Orders</th><th>Volume</th></tr>
 {% for station in fpbuy %}
-    <tr><td class="station">{{station.stationName}}</td><td class="alignright">{{station.coun}}</td><td class="alignright">{{station.vol}}</td></tr>
+    <tr><td class="station">{{station.stationName|escape}}</td><td class="alignright">{{station.coun}}</td><td class="alignright">{{station.vol}}</td></tr>
 {% endfor %}
 </table>
 </div>
