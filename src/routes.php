@@ -33,6 +33,7 @@ EOS;
 
     foreach ($entries as $entry) {
         $entry=strtolower(preg_replace('/(\d),(\d)/','$1$2',$entry));
+        $entry=strtolower(preg_replace('/(\d)\.(\d)/','$1$2',$entry));
         if (preg_match("/^(30 Day Pilot.*)\t(\d+)\t(.*)$/", trim($entry), $matches)) {
             if (isset($typeidlookup[$matches[1]])) {
                 if (isset($inventory[$typeidlookup[$matches[1]]])) {
@@ -49,9 +50,10 @@ EOS;
                     $inventory[$typeidlookup[$matches[2]]]=$matches[1];
                 }
             }
-        } elseif (preg_match("/^(.*)\t([\d.,]+)\t/", trim($entry), $matches)) {
+        } elseif (preg_match("/^(.*)\t([\d\.,]+)\t/", trim($entry), $matches)) {
             if (isset($typeidlookup[$matches[1]])) {
                 $quantity=str_replace(',', '', str_replace(',', '', $matches[2]));
+                $quantity=str_replace('\.', '', str_replace('\.', '', $matches[2]));
                 if (isset($inventory[$typeidlookup[$matches[1]]])) {
                     $inventory[$typeidlookup[$matches[1]]]+=$quantity;
                 } else {
@@ -608,4 +610,44 @@ EOS;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
     return $this->renderer->render($response, 'type.phtml', $args);
+});
+
+
+$app->get('/authlogin', function ($request, $response, $args) {
+    include('/opt/web/market/src/secretreal.php');
+    return $response->withStatus(302)->withHeader('Location', 'https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=https%3A%2F%2Fmarket.fuzzwork.co.uk%2Fauth%2Fupdater&client_id='+$clientid+'&scope=esi-universe.read_structures.v1%20esi-markets.structure_markets.v1&state=authmebitch');
+});
+
+$app->get('/auth/updater',function ($request, $response, $args) {
+    include('/opt/web/market/src/secretreal.php');
+    $code=$_GET['code'];
+    $state=$_GET['state'];
+    $url='https://login.eveonline.com/oauth/token';
+    $header='Authorization: Basic '.base64_encode($clientid.':'.$secret);
+    $fields=array(
+        'grant_type' => 'authorization_code',
+        'code' => $code
+    );
+    $fields_string='';
+    foreach ($fields as $key => $value) {
+        $fields_string .= $key.'='.$value.'&';
+    }
+    rtrim($fields_string, '&');
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_USERAGENT, $useragent);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array($header));
+    curl_setopt($ch, CURLOPT_POST, count($fields));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    $result = curl_exec($ch);
+    if ($result===false) {
+        $response->getBody()->write(curl_error($ch));
+    }
+    curl_close($ch);
+    $resp=json_decode($result);
+    $response->getBody()->write(print_r($resp,true));
+    return $response;
 });
