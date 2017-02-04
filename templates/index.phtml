@@ -21,10 +21,10 @@
 <col span=8 class="sellorders">
 </colgroup>
 <thead>
-<tr><th></th><th colspan=7>Buy</th><th colspan=7>Sell</th></tr>
+<tr><th></th><th colspan=6>Buy</th><th colspan=6>Sell</th></tr>
 <tr><th>Type</th>
-<th>Weighted Average</th><th>Max Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Buy Average</th>
-<th>Weighted Average</th><th>Min Price</th><th>Standard Deviation</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Sell Average</th>
+<th>Weighted Average</th><th>Max Price</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Buy Average</th>
+<th>Weighted Average</th><th>Min Price</th><th>Median</th><th>Total Volume</th><th>Number of Orders</th><th>5% Sell Average</th>
 </thead>
 <tbody>
 </tr>
@@ -32,14 +32,12 @@
     <tr><td>{{types[loop.index0]}}</td>
         <td>{{aggregate['true'][0]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][1]|number_format(2, '.', ',')}}</td>
-        <td>{{aggregate['true'][3]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][4]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['true'][5]|number_format(0, '.', ',')}}</td>
         <td>{{aggregate['true'][6]|number_format(0, '.', ',')}}</td>
         <td>{{aggregate['true'][7]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][0]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][2]|number_format(2, '.', ',')}}</td>
-        <td>{{aggregate['false'][3]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][4]|number_format(2, '.', ',')}}</td>
         <td>{{aggregate['false'][5]|number_format(0, '.', ',')}}</td>
         <td>{{aggregate['false'][6]|number_format(0, '.', ',')}}</td>

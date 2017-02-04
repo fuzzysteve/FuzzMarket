@@ -1,11 +1,11 @@
 html, button, input, select, textarea, .pure-g [class *= "pure-u"] {font-family: 'Electrolize', sans-serif !important;}
-body {background-color:#fff1e0}
+body {background-color:#F5F5F5}
 table {font-family: 'Source Code Pro' !important;}
 .content { margin:auto; padding:30px;}
 .orders td { padding:4px; text-align:right;}
 .orders th { padding:4px;}
 .subtotal th { padding:4px; text-align:right;}
-.orders tbody tr:nth-child(odd) { background-color: #A890A4; }
+.orders tbody tr:nth-child(odd) { background-color: #E5E5E5; }
 .orders tbody td { border-right:1px dotted #222 }
 .orders { width:100%}
 .aggregates {border-collapse:collapse; border:1px solid}
@@ -16,6 +16,8 @@ table {font-family: 'Source Code Pro' !important;}
 .title { text-align:center}
 .ui-autocomplete { max-height: 100px; overflow-y: auto;overflow-x: hidden;  }
 .ui-helper-hidden-accessible { position: absolute; left:-999em; }
+.center { text-align:center;}
+.menu-black { background-color:#222222;color:#999999}
 
 .stationstat{ width:80%}
 .stationstat td { padding:4px;}
@@ -23,10 +25,10 @@ table {font-family: 'Source Code Pro' !important;}
 .fixedbutton {position: fixed; top: 30px; right: 50px; background-color:lightgray;z-index:200;}
 footer {margin:30px;}
 
-a:link { color: #3C1C2A; text-decoration: underline;}
-a:visited { color: #CFB9C9; text-decoration: underline;}
-a:hover { color: #6D8406; text-decoration: underline;}
-a:active { color: #B0F9F8; text-decoration: underline;}
+a:link { color: #999999; text-decoration: underline;}
+a:visited { color: #999999; text-decoration: underline;}
+a:hover { color: #999999; text-decoration: underline;}
+a:active { color: #999999; text-decoration: underline;}
 
 .pasteblock { margin:auto;width:70%}
 .pasteblock textarea {width:100%}
