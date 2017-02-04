@@ -12,7 +12,7 @@ table {font-family: 'Source Code Pro' !important;}
 .aggregates .sellorders { border:1px solid}
 .aggregates .buyorders { border:1px solid}
 .aggregates td {text-align:right; padding:1px;}
-.aggregates tbody tr:nth-child(odd) { background-color: #A890A4; }
+.aggregates tbody tr:nth-child(odd) { background-color:  #E5E5E5; }
 .title { text-align:center}
 .ui-autocomplete { max-height: 100px; overflow-y: auto;overflow-x: hidden;  }
 .ui-helper-hidden-accessible { position: absolute; left:-999em; }
