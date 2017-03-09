@@ -52,7 +52,7 @@ def processData(result,orderwriter,ordersetid,connection,orderTable):
             orders=resp.json()
             logging.info('{} orders on page {} {}'.format(len(orders),result.fullurl,result.page))
             for order in orders:
-                if not result.structure and int(order['location_id'])>100000000 and not order['is_buy_order']:
+                if not result.structure and int(order['location_id'])>100000000 and order['is_buy_order']:
                     pass
                 else:
                     orderwriter.writerow([order['order_id'],
