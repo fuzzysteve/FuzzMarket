@@ -34,6 +34,9 @@ EOS;
     foreach ($entries as $entry) {
         $entry=strtolower(preg_replace('/(\d),(\d)/','$1$2',$entry));
         $entry=strtolower(preg_replace('/(\d)\.(\d)/','$1$2',$entry));
+        if (preg_match("/blueprint copy/", trim($entry), $matches)) {
+            continue;
+        }
         if (preg_match("/^(30 day pilot.*)\t(\d+)\t(.*)$/", trim($entry), $matches)) {
             if (isset($typeidlookup[$matches[1]])) {
                 if (isset($inventory[$typeidlookup[$matches[1]]])) {
