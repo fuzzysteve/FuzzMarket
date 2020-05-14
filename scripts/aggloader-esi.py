@@ -18,6 +18,9 @@ import os
 import shutil
 import base64
 
+import gzip
+from StringIO import StringIO
+
 
 import logging
 logging.basicConfig(filename='logs/aggloader-esi.log',level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
@@ -49,43 +52,49 @@ def processData(result,orderwriter,ordersetid,connection,orderTable):
         regionid=result.region
         logging.info('Process {} {} {} {}'.format(resp.status_code,result.url,result.retry,result.region))
         if resp.status_code==200:
-            orders=resp.json()
-            logging.info('{} orders on page {} {}'.format(len(orders),result.fullurl,result.page))
-            for order in orders:
-                if not result.structure and int(order['location_id'])>100000000 and order['is_buy_order']:
-                    pass
-                else:
-                    orderwriter.writerow([order['order_id'],
-                                        order['type_id'],
-                                        order['issued'],
-                                        order['is_buy_order'],
-                                        order['volume_remain'],
-                                        order['volume_total'],
-                                        order['min_volume'],
-                                        order['price'],
-                                        order['location_id'],
-                                        order['range'],
-                                        order['duration'],
-                                        regionid,
-                                        ordersetid]
-                                    )
+            try:
+                orders=resp.json()
+                logging.info('{} orders on page {} {}'.format(len(orders),result.fullurl,result.page))
+                for order in orders:
+                    if not result.structure and int(order['location_id'])>100000000 and order['is_buy_order']:
+                        pass
+                    else:
+                        orderwriter.writerow([order['order_id'],
+                                            order['type_id'],
+                                            order['issued'],
+                                            order['is_buy_order'],
+                                            order['volume_remain'],
+                                            order['volume_total'],
+                                            order['min_volume'],
+                                            order['price'],
+                                            order['location_id'],
+                                            order['range'],
+                                            order['duration'],
+                                            regionid,
+                                            ordersetid]
+                                        )
 
-            if len(orders)>0:
-                nextpage=result.url
-            else:
-                nextpage=None
-            logging.info('{}: next page {}'.format(result.url,nextpage))
-            return {'retry':0,'url':nextpage,'region':result.region,'page':result.page+1,'structure':result.structure}
+                if len(orders)>0:
+                    nextpage=result.url
+                else:
+                    nextpage=None
+                logging.info('{}: next page {}'.format(result.url,nextpage))
+                return {'retry':0,'url':nextpage,'region':result.region,'page':result.page+1,'structure':result.structure}
+            except:
+                logging.error("URL: {} could not be parsed".format(result.url))
+                file = open("logs/{}-{}.txt".format(result.region,result.page),"wb")
+                file.write(resp.content)
+                file.close()
         elif resp.status_code==403:
             logging.error("403 status. {} returned {}".format(resp.url,resp.status_code))
             return {'retry':4}
         else:
-            logging.error("Non 200 status. {} returned {}".format(resp.url,resp.status_code))
+            logging.error("Non 200 status. {} returned {} on retry {}".format(resp.url,resp.status_code,result.retry))
             return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
     except requests.exceptions.ConnectionError as e:
         logging.error(e)
         return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
-    
+    return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
     
     
     
@@ -164,7 +173,7 @@ if __name__ == "__main__":
     
     for regionid in xrange(10000001,10000070):
         if regionid not in (10000024,10000026):
-            urls.append({'url':"https://esi.tech.ccp.is/latest/markets/{}/orders/?order_type=all&datasource=tranquility&page=".format(regionid),'retry':0,'page':1,'region':regionid,'structure':0})
+            urls.append({'url':"https://esi.evetech.net/latest/markets/{}/orders/?order_type=all&datasource=tranquility&page=".format(regionid),'retry':0,'page':1,'region':regionid,'structure':0})
 
     trans = connection.begin()
 
@@ -188,14 +197,13 @@ if __name__ == "__main__":
             urls=[]
             for result in as_completed(futures):
                 presult=processData(result,orderwriter,ordersetid,connection,orderTable)
-                if presult['retry']==1:
+                if presult['retry']==1 or presult['retry']==2:
                     urls.append(presult)
                     logging.info("adding {} to retry {}".format(result.url,presult['retry']))
                 if presult['retry'] == 0 and presult['url'] is not None:
                     logging.info('{} has more pages. {}'.format(result.url,presult['retry']))
                     urls.append(presult)
         
-    
 
         # Get authorization
         headers = {'Authorization':'Basic '+ base64.b64encode(clientid+':'+secret),'User-Agent':useragent}
@@ -212,7 +220,7 @@ if __name__ == "__main__":
         
         results=connection.execute('select "stationID",mss."regionID" from evesde."staStations" sta join evesde."mapSolarSystems" mss on mss."solarSystemID"=sta."solarSystemID"  where "stationID">100000000').fetchall()
         for result in results:
-            urls.append({'url':"https://esi.tech.ccp.is/latest/markets/structures/{}/?&datasource=tranquility&page=".format(result[0]),'retry':0,'page':1,'region':result[1],'structure':1})
+            urls.append({'url':"https://esi.evetech.net/latest/markets/structures/{}/?&datasource=tranquility&page=".format(result[0]),'retry':0,'page':1,'region':result[1],'structure':1})
         
         
         while len(urls)>0:
@@ -230,7 +238,6 @@ if __name__ == "__main__":
                 if presult['retry'] == 0 and presult['url'] is not None:
                     logging.info('{} has more pages. {}'.format(result.url,presult['retry']))
                     urls.append(presult)
-
 
     logging.warn("Loading Data File {}".format(ordersetid));
     connection.execute("""copy orders_{}("orderID","typeID",issued,buy,volume,"volumeEntered","minVolume",price,"stationID",range,duration,region,"orderSet") from '/tmp/orderset-{}.csv'""".format((int(ordersetid)/100)%10,ordersetid))
@@ -302,13 +309,16 @@ if __name__ == "__main__":
     pipe = redisdb.pipeline()
     count=0;
     for row in agg2.itertuples():
-        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]))
+        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]),ex=5400)
         count+=1
         if count>1000:
             count=0
             pipe.execute()
     pipe.execute()
 
+
+    logging.warn("Outputing to CSV {}".format(ordersetid));
+    agg2.to_csv(path_or_buf="/tmp/aggregatecsv.csv.gz",compression='gzip');
 
     logging.warn("Station Aggregates {}".format(ordersetid));
     
@@ -373,7 +383,7 @@ if __name__ == "__main__":
     logging.warn("Outputing to Redis {}".format(ordersetid));
     count=0;
     for row in agg2.itertuples():
-        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]))
+        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]),ex=5400)
         count+=1
         if count>1000:
             count=0
@@ -381,6 +391,78 @@ if __name__ == "__main__":
     pipe.execute()
     
 
+    logging.warn("System Aggregates {}".format(ordersetid));
+    
+    logging.warn("Pandas populating sell {}".format(ordersetid));
+    
+    sell=pandas.read_sql_query("""select "solarSystemID"||'|'||"typeID"||'|'||buy as what,price,sum(volume) volume from orders join evesde."staStations" on orders."stationID"="staStations"."stationID" where "orderSet"={} and "solarSystemID" in (30000142,30000144) and buy=False group by "solarSystemID","typeID",buy,price order by "solarSystemID","typeID",price asc""".format(ordersetid),connection);
+    logging.warn("Pandas populating buy {}".format(ordersetid));
+    buy=pandas.read_sql_query("""select "solarSystemID"||'|'||"typeID"||'|'||buy as what,price,sum(volume) volume from orders join evesde."staStations" on orders."stationID"="staStations"."stationID" where "orderSet"={} and "solarSystemID" in (30000142,30000144) and buy=True group by "solarSystemID","typeID",buy,price order by "solarSystemID","typeID",price asc""".format(ordersetid),connection);
+    logging.warn("Pandas populated {}".format(ordersetid));
+
+
+    logging.warn("Sell Math running {}".format(ordersetid));
+    sell['min']=sell.groupby('what')['price'].transform('min')
+    sell['volume']=sell.apply(lambda x: 0 if x['price']>x['min']*100 else x['volume'],axis=1)
+    sell['cumsum']=sell.groupby('what')['volume'].apply(lambda x: x.cumsum())
+    sell['fivepercent']=sell.groupby('what')['volume'].transform('sum')/20
+    sell['lastsum']=sell.groupby('what')['cumsum'].shift(1)
+    sell.fillna(0,inplace=True)
+    sell['applies']=sell.apply(lambda x: x['volume'] if x['cumsum']<=x['fivepercent'] else x['fivepercent']-x['lastsum'],axis=1)
+    num = sell._get_numeric_data()
+    num[num < 0] = 0
+    logging.warn("Buy Math running {}".format(ordersetid));
+    buy['max']=buy.groupby('what')['price'].transform('max')
+    buy['volume']=buy.apply(lambda x: 0 if x['price']<x['max']/100 else x['volume'],axis=1)
+    buy['cumsum']=buy.groupby('what')['volume'].apply(lambda x: x.cumsum())
+    buy['fivepercent']=buy.groupby('what')['volume'].transform('sum')/20
+    buy['lastsum']=buy.groupby('what')['cumsum'].shift(1)
+    buy.fillna(0,inplace=True)
+    buy['applies']=buy.apply(lambda x: x['volume'] if x['cumsum']<=x['fivepercent'] else x['fivepercent']-x['lastsum'],axis=1)
+    num = buy._get_numeric_data()
+    num[num < 0] = 0
+        
+    
+    logging.warn("Aggregating {}".format(ordersetid));
+    sellagg = pandas.DataFrame()
+    sellagg['weightedaverage']=sell.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.volume))
+    sellagg['maxval']=sell.groupby('what')['price'].max()
+    sellagg['minval']=sell.groupby('what')['price'].min()
+    sellagg['stddev']=sell.groupby('what')['price'].std()
+    sellagg['median']=sell.groupby('what')['price'].median()
+    sellagg.fillna(0.01,inplace=True)
+    sellagg['volume']=sell.groupby('what')['volume'].sum()
+    sellagg['numorders']=sell.groupby('what')['price'].count()
+    sellagg['fivepercent']=sell.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
+    sellagg['orderSet']=ordersetid
+    buyagg = pandas.DataFrame()
+    buyagg['weightedaverage']=buy.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.volume))
+    buyagg['maxval']=buy.groupby('what')['price'].max()
+    buyagg['minval']=buy.groupby('what')['price'].min()
+    buyagg['stddev']=buy.groupby('what')['price'].std()
+    buyagg['median']=buy.groupby('what')['price'].median()
+    buyagg.fillna(0.01,inplace=True)
+    buyagg['volume']=buy.groupby('what')['volume'].sum()
+    buyagg['numorders']=buy.groupby('what')['price'].count()
+    buyagg['fivepercent']=buy.groupby('what').apply(lambda x: numpy.average(x.price, weights=x.applies))
+    buyagg['orderSet']=ordersetid
+    agg2=pandas.concat([buyagg,sellagg])
+        
+    
+    logging.warn("Outputing to DB {}".format(ordersetid));
+    agg2.to_sql('aggregates',connection,index=True,if_exists='append')
+    logging.warn("Outputing to Redis {}".format(ordersetid));
+    count=0;
+    for row in agg2.itertuples():
+        pipe.set(row[0], "{}|{}|{}|{}|{}|{}|{}|{}".format(row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]),ex=5400)
+        count+=1
+        if count>1000:
+            count=0
+            pipe.execute()
+    pipe.execute()
+    
+
+    
     
     logging.warn("Storing some stats for the front page {}".format(ordersetid));
     result=connection.execute("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=false group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid)).fetchone()
