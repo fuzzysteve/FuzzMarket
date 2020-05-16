@@ -13,8 +13,11 @@
 <div class="pure-g">
 <div class="pure-u-1-1">
 <p>Wheee! API.</p>
-<p>Just a simple one at the moment. Regions and 5 the hub stations only.</p>
+<p>Just a simple one at the moment. Global, Regions, Jita, Perimeter and 5 the hub stations only.</p>
 <ul>
+<li>Global - 0
+<li>Jita - 30000142
+<li>Perimeter - 30000144
 <li>Jita 4-4 CNAP - 60003760
 <li>Amarr VIII - 60008494
 <li>Dodixie - 60011866
@@ -24,7 +27,7 @@
 <p>Formatted one of these ways</p>
 <pre>https://market.fuzzwork.co.uk/aggregates/?region=10000002&types=34,35,36,37,38,39,40</pre>
 <pre>https://market.fuzzwork.co.uk/aggregates/?station=60003760&types=34,35,36,37,38,39,40</pre>
-<p>(Due to how it works, you can give a station as a region, and it will return correctly. These are all precalculated aggregates)</p>
+<p>(Due to how it works, you can give a station or a system as a region, and it will return correctly. These are all precalculated aggregates)</p>
 <p>Returning a json dataset looking like (this is truncated) the following</p>
 <pre>
 {
@@ -92,6 +95,10 @@
 <li>Close and load. you're now done.
 <li>Just hit refresh all, when you want to update them. You can, through the connections button on the data ribbon, set the query up to refresh on open, or on a timer. just select it and go to the properties.
 </ol>
+<p>There's also the api https://market.fuzzwork.co.uk/api/orderset which returns the most recent orderset id. This may be of use if you're downloading the order book. Please don't do this every 30 minutes. Get the data youself, direct from CCP. It'll be fresher and more reliable.</p>
+<hr>
+<p>If you're wanting <em>all the aggregated market date</em>, then you'll probably want to get https://market.fuzzwork.co.uk/aggregatecsv.csv.gz, which containst a full dump of the data. Though if an item isn't on the market, you'll get _nothing_ back for it. and it'll require a little manipulation to be easily usable. Unfortunately it's too big for google sheets. excel handles it.</p>
+
 <hr>
 <h2>Files</h2>
 <ul>

@@ -211,6 +211,7 @@ $app->get('/aggregates/',function ($request, $response, $args) {
     $redis = new Predis\Client();
     $aggregate=array();
     $allGetVars = $request->getQueryParams();
+    $region=0;
     if (isset($allGetVars['region'])){
         $region=$allGetVars['region'];
     } elseif (isset($allGetVars['station'])){
@@ -228,14 +229,14 @@ $app->get('/aggregates/',function ($request, $response, $args) {
                 $details[0]=null;
             }
             $aggregate[$type][$ordertype[$buy]]=array(
-                "weightedAverage"=>$details[0],
-                "max"=>$details[1],
-                "min"=>$details[2],
-                "stddev"=>$details[3],
-                "median"=>$details[4],
-                "volume"=>$details[5],
-                "orderCount"=>$details[6],
-                "percentile"=>$details[7]
+                "weightedAverage"=>$details[0]?$details[0]:0,
+                "max"=>$details[1]?$details[1]:0,
+                "min"=>$details[2]?$details[2]:0,
+                "stddev"=>$details[3]?$details[3]:0,
+                "median"=>$details[4]?$details[4]:0,
+                "volume"=>$details[5]?$details[5]:0,
+                "orderCount"=>$details[6]?$details[6]:0,
+                "percentile"=>$details[7]?$details[7]:0
             );
         }
     }
@@ -249,7 +250,7 @@ $app->get('/aggregates/',function ($request, $response, $args) {
 $app->get('/', function ($request, $response, $args) {
     $redis = new Predis\Client();
     $aggregate=array();
-    foreach (array(34,35,36,37,38,39,40,11399,29668,40520) as $type) {
+    foreach (array(34,35,36,37,38,39,40,11399,44992,40520) as $type) {
         $aggregate[$type]=array();
         foreach (array("true","false") as $buy) {
             $aggregate[$type][$buy]=explode("|",$redis->get('60003760|'.$type."|".$buy));
@@ -261,6 +262,18 @@ $app->get('/', function ($request, $response, $args) {
     $args['types']=array("Tritanium","Pyrite","Mexallon","Isogen","Nocxium","Zydrine","Megacyte","Morphite","PLEX","Skill Injector");
     $args['maggs']=$aggregate;
     return $this->renderer->render($response, 'index.phtml', $args);
+});
+
+$app->get("/api/orderset", function ($request, $response)  use ($app) {
+    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $ordersetsql="select max(id) id from orderset";
+    $stmt = $db->prepare($ordersetsql);
+    $stmt->execute();
+    $result= $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result=array("orderset"=>$result[0]['id']);
+    $resWithExpires = $this->cache->withExpires($response->withJson($result), time() + 300);
+    return $resWithExpires;
 });
 
 $app->get("/api/typeids", function ($request, $response)  use ($app) {
