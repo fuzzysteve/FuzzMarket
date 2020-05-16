@@ -53,6 +53,15 @@ EOS;
                     $inventory[$typeidlookup[$matches[1]]]=$matches[2];
                 }
             }
+        } elseif (preg_match("/^(.*)\t.*\t(\d+)$/", trim($entry), $matches)) {
+            if (isset($typeidlookup[$matches[1]])) {
+                $quantity=$matches[2];
+                if (isset($inventory[$typeidlookup[$matches[1]]])) {
+                    $inventory[$typeidlookup[$matches[1]]]+=$quantity;
+                } else {
+                    $inventory[$typeidlookup[$matches[1]]]=$quantity;
+                }
+            }
         } elseif (preg_match("/^(\d+) (.*)$/", trim($entry), $matches)) {
             if (isset($typeidlookup[$matches[2]])) {
                 if (isset($inventory[$typeidlookup[$matches[2]]])) {
