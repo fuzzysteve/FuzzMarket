@@ -333,6 +333,93 @@ $app->get('/station/', function ($request, $response, $args) {
 $app->get('/aggregate/', function ($request, $response, $args) {
     return $this->renderer->render($response, 'aggregate.phtml', $args);
 });
+
+$app->get('/browser/', function ($request, $response, $args) {
+    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $sql='select "regionID" as value,"regionName" as label from evesde."mapRegions" where "regionID"<11000000 and "regionID" not in (10000004,10000017) order by "regionName"';
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    $result= $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $args['regions']=$result;
+    return $this->renderer->render($response, 'browser.phtml', $args);
+});
+
+
+$app->get("/api/marketgroup/{parent:[0-9]+}/", function ($request, $response, $args)  use ($app) {
+    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $marketgroupsql='select "parentGroupID","marketGroupID","marketGroupName","iconID","hasTypes" from evesde."invMarketGroups" where "parentGroupID"=:parent or (:parent=0 and "parentGroupID" is null) order by "marketGroupName"';
+    $stmt = $db->prepare($marketgroupsql);
+    $stmt->execute(array(":parent"=>$args['parent']));
+    $marketgroups= $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $markettypesql='select "typeID","typeName","iconID" from evesde."invTypes" where "marketGroupID"=:parent order by "typeName"';
+    $stmt = $db->prepare($markettypesql);
+    $stmt->execute(array(":parent"=>$args['parent']));
+    $types= $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result=array("marketgroups"=>$marketgroups,"types"=>$types,"groupid"=>$args['parent']);
+    $resWithExpires = $this->cache->withExpires($response->withJson($result), time() + 300);
+    return $resWithExpires;
+});
+
+$app->get('/api/region/{region:[0-9]+}/type/{type:[0-9]+}/', function ($request, $response, $args) {
+    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $ordersetsql="select max(id) from orderset";
+    $stmt = $db->prepare($ordersetsql);
+    $stmt->execute();
+    $result= $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $orderset=$result['0']['max'];
+
+    $sellordersql=<<<EOS
+        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",round(price,2) price,orders."stationID",duration,"stationName","typeName","regionName",orders.region,ms.security
+        FROM orders
+        JOIN evesde."staStations" sta on orders."stationID"=sta."stationID"
+        JOIN evesde."invTypes" it on orders."typeID"=it."typeID"
+        JOIN evesde."mapRegions" mr on mr."regionID"=orders.region
+        JOIN evesde."mapSolarSystems" ms on ms."solarSystemID"=sta."solarSystemID"
+        WHERE orders."typeID"=:typeid
+        AND orders."orderSet"=:orderset
+        AND ( orders.region=:region or :region=0)
+        AND buy = False
+        order by price asc,region
+EOS;
+    $buyordersql=<<<EOS
+        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",round(price,2) price,orders."stationID",range,duration,"stationName","typeName","regionName",orders.region,ms.security
+        FROM orders
+        JOIN evesde."staStations" sta on orders."stationID"=sta."stationID"
+        JOIN evesde."invTypes" it on orders."typeID"=it."typeID"
+        JOIN evesde."mapRegions" mr on mr."regionID"=orders.region
+        JOIN evesde."mapSolarSystems" ms on ms."solarSystemID"=sta."solarSystemID"
+        WHERE orders."typeID"=:typeid
+        AND orders."orderSet"=:orderset
+        AND buy = True
+        AND ( orders.region=:region or :region=0)
+        order by price desc,region
+EOS;
+    $stmt = $db->prepare($sellordersql);
+    $stmt->execute(array(":typeid"=>$args['type'],":orderset"=>$orderset,":region"=>$args['region']));
+    $sellorders=$stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $db->prepare($buyordersql);
+    $stmt->execute(array(":typeid"=>$args['type'],":orderset"=>$orderset,":region"=>$args['region']));
+    $buyorders=$stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt =$db->prepare('select "typeName" from evesde."invTypes" where "typeID"=:typeid');
+    $stmt->execute(array(":typeid"=>$args['type']));
+    $nameres=$stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result=array();
+    $db=null;
+    $result['typename']=$nameres[0]['typeName'];
+    $result['orderset']=$orderset;
+    $result['buyorders']=$buyorders;
+    $result['sellorders']=$sellorders;
+    $resWithExpires = $this->cache->withExpires($response->withJson($result), time() + 300);
+    return $resWithExpires;
+
+});
+
+
 $app->get('/api/', function ($request, $response, $args) {
 
     $files=glob('/opt/orderbooks/*.csv.gz');

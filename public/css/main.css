@@ -19,16 +19,23 @@ table {font-family: 'Source Code Pro' !important;}
 .center { text-align:center;}
 .menu-black { background-color:#222222;color:#999999}
 
+.menu-black a:link { color: #999999; text-decoration: underline;}
+.menu-black a:visited { color: #999999; text-decoration: underline;}
+.menu-black a:hover { color: #999999; text-decoration: underline;}
+.menu-black a:active { color: #999999; text-decoration: underline;}
+
 .stationstat{ width:80%}
 .stationstat td { padding:4px;}
 .alignright {text-align:right;}
 .fixedbutton {position: fixed; top: 30px; right: 50px; background-color:lightgray;z-index:200;}
 footer {margin:30px;}
 
-a:link { color: #999999; text-decoration: underline;}
-a:visited { color: #999999; text-decoration: underline;}
-a:hover { color: #999999; text-decoration: underline;}
-a:active { color: #999999; text-decoration: underline;}
+a:link { color: #444444; text-decoration: underline;}
+a:visited { color: #444444; text-decoration: underline;}
+a:hover { color: #444444; text-decoration: underline;}
+a:active { color: #444444; text-decoration: underline;}
 
 .pasteblock { margin:auto;width:70%}
 .pasteblock textarea {width:100%}
+
+

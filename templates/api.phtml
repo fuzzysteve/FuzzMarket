@@ -102,6 +102,7 @@
 <hr>
 <h2>Files</h2>
 <ul>
+<li><a href="/orderbooks/latest.csv.gz">latest.csv.gz</a> - linked to the latest file</li>
 {% for file in files%}
     {% if file != "." and file != ".." %}
     <li><a href="/orderbooks/{{file|split('/')[3]}}">{{file|split('/')[3]}}</a></li>
