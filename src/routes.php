@@ -233,10 +233,16 @@ $app->get('/aggregates/',function ($request, $response, $args) {
             continue;
         }
         foreach (array("true","false") as $buy) {
-            $details=explode("|",$redis->get($region.'|'.$type."|".$buy));
+            $values=$redis->get($region.'|'.$type."|".$buy);
+            if ($values==''){
+                $values='|||||||';
+            }
+            $details=explode("|",$values);
+            #$details=explode("|",$redis->get($region.'|'.$type."|".$buy));
             if ($details[0]==""){
                 $details[0]=null;
             }
+
             $aggregate[$type][$ordertype[$buy]]=array(
                 "weightedAverage"=>$details[0]?$details[0]:0,
                 "max"=>$details[1]?$details[1]:0,
