@@ -216,7 +216,7 @@ EOS;
 });
 
 
-$app->get('/aggregates/',function ($request, $response, $args) {
+$app->map(['GET', 'POST'],'/aggregates/',function ($request, $response, $args) {
     $redis = new Predis\Client();
     $aggregate=array();
     $allGetVars = $request->getQueryParams();
@@ -229,6 +229,17 @@ $app->get('/aggregates/',function ($request, $response, $args) {
          $region=$allGetVars['system'];
     }
     $types=$allGetVars['types'];
+    $allPostPutVars = $request->getParsedBody();
+    if (isset($allPostPutVars['types'])){
+        $types=$allPostPutVars['types'];
+        if (isset($allPostPutVars['region'])){
+            $region=$allPostPutVars['region'];
+        } elseif (isset($allPostPutVars['station'])){
+             $region=$allPostPutVars['station'];
+        } elseif (isset($allPostPutVars['system'])){
+             $region=$allPostPutVars['system'];
+        }
+    }
     $ordertype=array("true"=>"buy","false"=>"sell");
     foreach (explode(",",$types) as $type) {
         if ($type == '') {
