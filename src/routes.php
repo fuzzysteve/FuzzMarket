@@ -225,6 +225,8 @@ $app->get('/aggregates/',function ($request, $response, $args) {
         $region=$allGetVars['region'];
     } elseif (isset($allGetVars['station'])){
          $region=$allGetVars['station'];
+    } elseif (isset($allGetVars['system'])){
+         $region=$allGetVars['system'];
     }
     $types=$allGetVars['types'];
     $ordertype=array("true"=>"buy","false"=>"sell");
@@ -379,7 +381,7 @@ $app->get('/api/region/{region:[0-9]+}/type/{type:[0-9]+}/', function ($request,
     $orderset=$result['0']['max'];
 
     $sellordersql=<<<EOS
-        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",round(price,2) price,orders."stationID",duration,"stationName","typeName","regionName",orders.region,ms.security
+        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",round(price,2) price,orders."stationID",duration,"stationName","typeName","regionName",orders.region,ms.security,sta."solarSystemID"
         FROM orders
         JOIN evesde."staStations" sta on orders."stationID"=sta."stationID"
         JOIN evesde."invTypes" it on orders."typeID"=it."typeID"
@@ -392,7 +394,7 @@ $app->get('/api/region/{region:[0-9]+}/type/{type:[0-9]+}/', function ($request,
         order by price asc,region
 EOS;
     $buyordersql=<<<EOS
-        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",round(price,2) price,orders."stationID",range,duration,"stationName","typeName","regionName",orders.region,ms.security
+        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",round(price,2) price,orders."stationID",range,duration,"stationName","typeName","regionName",orders.region,ms.security,sta."solarSystemID"
         FROM orders
         JOIN evesde."staStations" sta on orders."stationID"=sta."stationID"
         JOIN evesde."invTypes" it on orders."typeID"=it."typeID"
@@ -429,7 +431,7 @@ EOS;
 $app->get('/api/', function ($request, $response, $args) {
 
     $files=glob('/opt/orderbooks/*.csv.gz');
-    rsort($files);
+    rsort($files, SORT_NATURAL );
     $args['files']=$files;
 
     return $this->renderer->render($response, 'api.phtml', $args);
