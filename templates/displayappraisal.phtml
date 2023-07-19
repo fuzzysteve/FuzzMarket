@@ -6,13 +6,12 @@
 <div class="pure-u-1">
 <a name="sell"></a>
  <h1>Appraisal - Region {{region}}</h1>
-
-            <!--<tr class="subtotal"><th colspan=3>Totals</th><th>{{total.volume|number_format(2, '.', ',')}}</th><th>{{total.pbuy|number_format(2, '.', ',')}}</th><th>{{total.mbuy|number_format(2, '.', ',')}}</th>
-            <th>{{total.psell|number_format(2, '.', ',')}}</th><th>{{total.msell|number_format(2, '.', ',')}}</th></tr>-->
         <table class="orders subtotal" id="appraisal">
         <thead>
             <tr><th>Name</th><th>Quantity</th><th>Volume</th><th title="The average price of the highest 5% of buy orders by volume">Percentile Buy</th><th>Max Buy</th><th title="The average price of the lowest 5% of sell orders by volume">Percentile Sell</th><th>Min Sell</th></tr>
         </thead>
+            <tr> <th colspan=2>Totals</th><th>{{total.volume|number_format(2, '.', ',')}}</th><th>{{total.pbuy|number_format(2, '.', ',')}}</th><th>{{total.mbuy|number_format(2, '.', ',')}}</th>
+            <th>{{total.psell|number_format(2, '.', ',')}}</th><th>{{total.msell|number_format(2, '.', ',')}}</th></tr>
         <tbody>
             {% for item in appraisal%}
             <tr><td><a href="/region/{{regionid}}/type/{{item.typeid}}/">{{item.typename}}</a></td>

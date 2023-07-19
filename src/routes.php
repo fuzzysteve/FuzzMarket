@@ -149,7 +149,7 @@ EOS;
 });
 
 
-$app->get('/appraisal/{region:[0-9]+}/{identifier}',function ($request, $response, $args) {
+$app->get('/appraisal/{region:[0-9]+}/{identifier}[/{json}]',function ($request, $response, $args) {
 
     $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
@@ -211,7 +211,12 @@ EOS;
 
     $args['appraisal']=$appraisal;
     $args['total']=$total;
-    return $this->renderer->render($response, 'displayappraisal.phtml', $args);    
+    if ($args['json']) {
+        $resWithExpires = $this->cache->withExpires($response->withJson($args), time() + 300);
+        return $resWithExpires;
+    } else {
+        return $this->renderer->render($response, 'displayappraisal.phtml', $args);    
+    }
 
 });
 
