@@ -139,7 +139,7 @@ EOS;
     if (count($inventory)) {
         $sql="insert into appraisal (identifier,list) values (:id,:list)"; 
         $stmt = $db->prepare($sql);
-        $identifier=bin2hex(random_bytes(16));
+        $identifier=bin2hex(random_bytes(9));
         $stmt->execute(array(":id"=>$identifier,":list"=>json_encode($inventory)));
 
         return $response->withRedirect('/appraisal/'.$region.'/'.$identifier);
