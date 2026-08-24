@@ -231,7 +231,7 @@ $app->map(['GET', 'POST'],'/aggregates/',function ($request, $response, $args) {
     } elseif (isset($allGetVars['system'])){
          $region=$allGetVars['system'];
     }
-    $types=$allGetVars['types'];
+    $types=$allGetVars['types'] ?? '';
     $allPostPutVars = $request->getParsedBody();
     if (isset($allPostPutVars['types'])){
         $types=$allPostPutVars['types'];
