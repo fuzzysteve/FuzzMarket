@@ -1,18 +1,47 @@
+:root {
+    --color-bg: #F5F5F5;
+    --color-text: #222222;
+    --color-link: #444444;
+    --color-table-stripe: #E5E5E5;
+    --color-table-border: #222222;
+    --color-fixedbutton-bg: lightgray;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --color-bg: #181818;
+        --color-text: #DDDDDD;
+        --color-link: #8ab4f8;
+        --color-table-stripe: #262626;
+        --color-table-border: #555555;
+        --color-fixedbutton-bg: #333333;
+    }
+}
+
+:root[data-theme="dark"] {
+    --color-bg: #181818;
+    --color-text: #DDDDDD;
+    --color-link: #8ab4f8;
+    --color-table-stripe: #262626;
+    --color-table-border: #555555;
+    --color-fixedbutton-bg: #333333;
+}
+
 html, button, input, select, textarea, .pure-g [class *= "pure-u"] {font-family: 'Electrolize', sans-serif !important;}
-body {background-color:#F5F5F5}
+body {background-color: var(--color-bg); color: var(--color-text);}
 table {font-family: 'Source Code Pro' !important;}
 .content { margin:auto; padding:30px;}
 .orders td { padding:4px; text-align:right;}
 .orders th { padding:4px;}
 .subtotal th { padding:4px; text-align:right;}
-.orders tbody tr:nth-child(odd) { background-color: #E5E5E5; }
-.orders tbody td { border-right:1px dotted #222 }
+.orders tbody tr:nth-child(odd) { background-color: var(--color-table-stripe); }
+.orders tbody td { border-right:1px dotted var(--color-table-border) }
 .orders { width:100%}
 .aggregates {border-collapse:collapse; border:1px solid}
 .aggregates .sellorders { border:1px solid}
 .aggregates .buyorders { border:1px solid}
 .aggregates td {text-align:right; padding:1px;}
-.aggregates tbody tr:nth-child(odd) { background-color:  #E5E5E5; }
+.aggregates tbody tr:nth-child(odd) { background-color: var(--color-table-stripe); }
 .title { text-align:center}
 .ui-autocomplete { max-height: 100px; overflow-y: auto;overflow-x: hidden;  }
 .ui-helper-hidden-accessible { position: absolute; left:-999em; }
@@ -24,18 +53,18 @@ table {font-family: 'Source Code Pro' !important;}
 .menu-black a:hover { color: #999999; text-decoration: underline;}
 .menu-black a:active { color: #999999; text-decoration: underline;}
 
+.theme-toggle { cursor:pointer; background:none; border:none; font-size:1.1em; padding:0 1em; color:#999999; }
+
 .stationstat{ width:80%}
 .stationstat td { padding:4px;}
 .alignright {text-align:right;}
-.fixedbutton {position: fixed; top: 30px; right: 50px; background-color:lightgray;z-index:200;}
+.fixedbutton {position: fixed; top: 30px; right: 50px; background-color: var(--color-fixedbutton-bg); z-index:200;}
 footer {margin:30px;}
 
-a:link { color: #444444; text-decoration: underline;}
-a:visited { color: #444444; text-decoration: underline;}
-a:hover { color: #444444; text-decoration: underline;}
-a:active { color: #444444; text-decoration: underline;}
+a:link { color: var(--color-link); text-decoration: underline;}
+a:visited { color: var(--color-link); text-decoration: underline;}
+a:hover { color: var(--color-link); text-decoration: underline;}
+a:active { color: var(--color-link); text-decoration: underline;}
 
 .pasteblock { margin:auto;width:70%}
 .pasteblock textarea {width:100%}
-
-

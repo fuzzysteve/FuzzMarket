@@ -2,6 +2,16 @@
 <html>
     <head>
         <meta charset="utf-8"/>
+        <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('theme');
+                if (stored === 'light' || stored === 'dark') {
+                    document.documentElement.setAttribute('data-theme', stored);
+                }
+            } catch (e) {}
+        })();
+        </script>
         <title>{% block title %}{% endblock %}</title>
         <link rel="stylesheet" href="/css/main.css">
         <link rel="stylesheet" href="/css/pure-min.css">
@@ -28,8 +38,34 @@
             <li class="pure-menu-item"><a href="/appraisal/" class="pure-menu-link">Appraisal</a></li>
             <li class="pure-menu-item"><a href="/api/" class="pure-menu-link">API</a></li>
             <li class="pure-menu-item"><a href="/about/" class="pure-menu-link">About</a></li>
+            <li class="pure-menu-item"><button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button></li>
         </ul>
     </div>
+    <script>
+    (function() {
+        var root = document.documentElement;
+        var btn = document.getElementById('theme-toggle');
+        function effectiveTheme() {
+            var explicit = root.getAttribute('data-theme');
+            if (explicit === 'light' || explicit === 'dark') {
+                return explicit;
+            }
+            return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        function updateLabel() {
+            var dark = effectiveTheme() === 'dark';
+            btn.textContent = dark ? '☀️' : '🌙';
+            btn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+        }
+        btn.addEventListener('click', function() {
+            var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            try { localStorage.setItem('theme', next); } catch (e) {}
+            updateLabel();
+        });
+        updateLabel();
+    })();
+    </script>
         {% block content %}{% endblock %}
 <footer>
 EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. All other trademarks are the property of their respective owners. EVE Online, the EVE logo, EVE and all associated logos and designs are the intellectual property of CCP hf. All artwork, screenshots, characters, vehicles, storylines, world facts or other recognizable features of the intellectual property relating to these trademarks are likewise the intellectual property of CCP hf. CCP hf. has granted permission to market.fuzzwork.co.uk to use EVE Online and all associated logos and designs for promotional and information purposes on its website but does not endorse, and is not in any way affiliated with, market.fuzzwork.co.uk. CCP is in no way responsible for the content on or functioning of this website, nor can it be liable for any damage arising from the use of this website.
