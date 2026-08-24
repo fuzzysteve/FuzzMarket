@@ -1,7 +1,7 @@
 <?php
 return [
     'settings' => [
-        'displayErrorDetails' => true, // set to false in production
+        'displayErrorDetails' => false, // set to false in production
 
         // Renderer settings
         'renderer' => [
@@ -12,6 +12,13 @@ return [
         'logger' => [
             'name' => 'slim-app',
             'path' => __DIR__ . '/../logs/app.log',
+        ],
+
+        // Market database settings
+        'db' => [
+            'dsn' => 'pgsql:host=localhost;dbname=marketdata',
+            'user' => getenv('MARKETDATA_DB_USER') ?: 'marketdata',
+            'password' => getenv('MARKETDATA_DB_PASSWORD') ?: 'marketdatapass',
         ],
     ],
 ];

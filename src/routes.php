@@ -12,8 +12,7 @@ $app->post('/appraisal/',function ($request, $response, $args) {
         exit;
     }
 
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $sql=<<<EOS
 select lower("typeName") "typeName","typeID" from evesde."invTypes" where published=true and "marketGroupID" is not null
 EOS;
@@ -140,7 +139,7 @@ EOS;
     if (count($inventory)) {
         $sql="insert into appraisal (identifier,list) values (:id,:list)"; 
         $stmt = $db->prepare($sql);
-        $identifier=uniqid();
+        $identifier=bin2hex(random_bytes(16));
         $stmt->execute(array(":id"=>$identifier,":list"=>json_encode($inventory)));
 
         return $response->withRedirect('/appraisal/'.$region.'/'.$identifier);
@@ -151,8 +150,7 @@ EOS;
 
 $app->get('/appraisal/{region:[0-9]+}/{identifier}[/{json}]',function ($request, $response, $args) {
 
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $sql=<<<EOS
 select "typeName","typeID",volume from evesde."invTypes" where published=true and "marketGroupID" is not null
 EOS;
@@ -298,8 +296,7 @@ $app->get('/', function ($request, $response, $args) {
 });
 
 $app->get("/api/orderset", function ($request, $response)  use ($app) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) id from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -310,8 +307,7 @@ $app->get("/api/orderset", function ($request, $response)  use ($app) {
 });
 
 $app->get("/api/typeids", function ($request, $response)  use ($app) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $sql='select "typeID" as value,"typeName" as label from evesde."invTypes" where "marketGroupID" is not null order by "typeName"';
     $stmt = $db->prepare($sql);
     $stmt->execute();
@@ -321,8 +317,7 @@ $app->get("/api/typeids", function ($request, $response)  use ($app) {
 });
 
 $app->get("/api/regionids", function ($request, $response)  use ($app) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $sql='select "regionID" as value,"regionName" as label from evesde."mapRegions" where "regionID"<11000000 and "regionID" not in (10000004,10000017) order by "regionName"';
     $stmt = $db->prepare($sql);
     $stmt->execute();
@@ -332,8 +327,7 @@ $app->get("/api/regionids", function ($request, $response)  use ($app) {
 });
 
 $app->get("/api/stationids", function ($request, $response) use ($app) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $sql='select "stationID" as value,"stationName" as label from evesde."staStations" order by "stationName"';
     $stmt = $db->prepare($sql);
     $stmt->execute();
@@ -359,8 +353,7 @@ $app->get('/aggregate/', function ($request, $response, $args) {
 });
 
 $app->get('/browser/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $sql='select "regionID" as value,"regionName" as label from evesde."mapRegions" where "regionID"<11000000 and "regionID" not in (10000004,10000017) order by "regionName"';
     $stmt = $db->prepare($sql);
     $stmt->execute();
@@ -371,8 +364,7 @@ $app->get('/browser/', function ($request, $response, $args) {
 
 
 $app->get("/api/marketgroup/{parent:[0-9]+}/", function ($request, $response, $args)  use ($app) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $marketgroupsql='select "parentGroupID","marketGroupID","marketGroupName","iconID","hasTypes" from evesde."invMarketGroups" where "parentGroupID"=:parent or (:parent=0 and "parentGroupID" is null) order by "marketGroupName"';
     $stmt = $db->prepare($marketgroupsql);
     $stmt->execute(array(":parent"=>$args['parent']));
@@ -388,8 +380,7 @@ $app->get("/api/marketgroup/{parent:[0-9]+}/", function ($request, $response, $a
 });
 
 $app->get('/api/region/{region:[0-9]+}/type/{type:[0-9]+}/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -457,8 +448,7 @@ $app->get('/about/', function ($request, $response, $args) {
 });
 
 $app->get('/type/{type:[0-9]+}/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -508,8 +498,7 @@ EOS;
 
 
 $app->get('/region/{region:[0-9]+}/type/{type:[0-9]+}/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -560,8 +549,7 @@ EOS;
 });
 
 $app->get('/empire/type/{type:[0-9]+}/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -614,8 +602,7 @@ EOS;
 });
 
 $app->get('/hub/type/{type:[0-9]+}/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -667,8 +654,7 @@ EOS;
 
 
 $app->get('/history/{orderid:[0-9]+}', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     
     $sellordersql=<<<EOS
         SELECT "orderID","orderSet",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",price,orders."stationID",duration,"stationName","typeName","regionName"
@@ -705,8 +691,7 @@ EOS;
 });
 
 $app->get('/station/{station:[0-9]+}/type/{type:[0-9]+}/', function ($request, $response, $args) {
-    $db = new PDO("pgsql:host=localhost;dbname=marketdata;user=marketdata;password=marketdatapass");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    $db = $this->db;
     $ordersetsql="select max(id) from orderset";
     $stmt = $db->prepare($ordersetsql);
     $stmt->execute();
@@ -759,13 +744,19 @@ EOS;
 
 $app->get('/authlogin', function ($request, $response, $args) {
     include('/opt/web/market/src/secretreal.php');
-    return $response->withStatus(302)->withHeader('Location', 'https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=https%3A%2F%2Fmarket.fuzzwork.co.uk%2Fauth%2Fupdater&client_id='+$clientid+'&scope=esi-universe.read_structures.v1%20esi-markets.structure_markets.v1&state=authmebitch');
+    $state = bin2hex(random_bytes(16));
+    $_SESSION['oauth_state'] = $state;
+    return $response->withStatus(302)->withHeader('Location', 'https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=https%3A%2F%2Fmarket.fuzzwork.co.uk%2Fauth%2Fupdater&client_id='.$clientid.'&scope=esi-universe.read_structures.v1%20esi-markets.structure_markets.v1&state='.$state);
 });
 
 $app->get('/auth/updater',function ($request, $response, $args) {
     include('/opt/web/market/src/secretreal.php');
     $code=$_GET['code'];
     $state=$_GET['state'];
+    if (!isset($_SESSION['oauth_state']) || !is_string($state) || !hash_equals($_SESSION['oauth_state'], $state)) {
+        return $response->withStatus(403);
+    }
+    unset($_SESSION['oauth_state']);
     $url='https://login.eveonline.com/oauth/token';
     $header='Authorization: Basic '.base64_encode($clientid.':'.$secret);
     $fields=array(
@@ -788,10 +779,11 @@ $app->get('/auth/updater',function ($request, $response, $args) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
     $result = curl_exec($ch);
     if ($result===false) {
-        $response->getBody()->write(curl_error($ch));
+        curl_close($ch);
+        return $response->withStatus(502);
     }
     curl_close($ch);
     $resp=json_decode($result);
-    $response->getBody()->write(print_r($resp,true));
+    // Token values are intentionally not written to the response body.
     return $response;
 });
