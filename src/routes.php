@@ -209,7 +209,7 @@ EOS;
 
     $args['appraisal']=$appraisal;
     $args['total']=$total;
-    if ($args['json']) {
+    if (!empty($args['json'])) {
         $resWithExpires = $this->cache->withExpires($response->withJson($args), time() + 300);
         return $resWithExpires;
     } else {
@@ -682,7 +682,6 @@ EOS;
     $stmt = $db->prepare($buyordersql);
     $stmt->execute(array(":orderid"=>$args['orderid']));
     $buyorders=$stmt->fetchAll(PDO::FETCH_ASSOC);
-    $args['orderset']=$orderset;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
     return $this->renderer->render($response, 'history.phtml', $args);
