@@ -281,7 +281,7 @@ $app->map(['GET', 'POST'],'/aggregates/',function ($request, $response, $args) {
 $app->get('/', function ($request, $response, $args) {
     $redis = new Predis\Client();
     $aggregate=array();
-    foreach (array(34,35,36,37,38,39,40,11399,44992,40520) as $type) {
+    foreach (array(34,35,36,37,38,39,40,11399,40520) as $type) {
         $aggregate[$type]=array();
         foreach (array("true","false") as $buy) {
             $aggregate[$type][$buy]=explode("|",$redis->get('60003760|'.$type."|".$buy));
@@ -290,9 +290,65 @@ $app->get('/', function ($request, $response, $args) {
     $args['fpbuy']=json_decode($redis->get('fp-buy'));
     $args['fpsell']=json_decode($redis->get('fp-sell'));
     $args['fplastupdate']=$redis->get('fp-lastupdate');
-    $args['types']=array("Tritanium","Pyrite","Mexallon","Isogen","Nocxium","Zydrine","Megacyte","Morphite","PLEX","Skill Injector");
+    $args['types']=array("Tritanium","Pyrite","Mexallon","Isogen","Nocxium","Zydrine","Megacyte","Morphite","Skill Injector");
     $args['maggs']=$aggregate;
+
+    // PLEX no longer trades on the regular regional market (region 10000002) - it only
+    // trades on the separate virtual PLEX Market (region 19000001), anchored at the Jita hub station.
+    $plex=array();
+    foreach (array("true","false") as $buy) {
+        $plex[$buy]=explode("|",$redis->get('60003760|44992|'.$buy));
+    }
+    $args['plex']=$plex;
     return $this->renderer->render($response, 'index.phtml', $args);
+});
+
+$app->get('/plex/', function ($request, $response, $args) {
+    $db = $this->db;
+    // PLEX only trades on the separate virtual PLEX Market (region 19000001), not the
+    // regular regional markets, and its orderset can lag the rest of the app's, so use
+    // the newest orderset that actually has PLEX data rather than the global max.
+    $ordersetsql='select max("orderSet") from orders where "typeID"=44992';
+    $stmt = $db->prepare($ordersetsql);
+    $stmt->execute();
+    $result= $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $orderset=$result['0']['max'];
+
+    $sellordersql=<<<EOS
+        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",price,orders."stationID",duration,"stationName","typeName","regionName",region
+        FROM orders
+        JOIN evesde."staStations" sta on orders."stationID"=sta."stationID"
+        JOIN evesde."invTypes" it on orders."typeID"=it."typeID"
+        JOIN evesde."mapRegions" mr on mr."regionID"=region
+        WHERE orders."typeID"=44992
+        AND orders."orderSet"=:orderset
+        AND buy = False
+        order by price asc,region
+EOS;
+    $buyordersql=<<<EOS
+        SELECT "orderID",orders."typeID",issued,orders.volume,"volumeEntered","minVolume",price,orders."stationID",range,duration,"stationName","typeName","regionName",region
+        FROM orders
+        JOIN evesde."staStations" sta on orders."stationID"=sta."stationID"
+        JOIN evesde."invTypes" it on orders."typeID"=it."typeID"
+        JOIN evesde."mapRegions" mr on mr."regionID"=region
+        WHERE orders."typeID"=44992
+        AND orders."orderSet"=:orderset
+        AND buy = True
+        order by price desc,region
+EOS;
+    $stmt = $db->prepare($sellordersql);
+    $stmt->execute(array(":orderset"=>$orderset));
+    $sellorders=$stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $db->prepare($buyordersql);
+    $stmt->execute(array(":orderset"=>$orderset));
+    $buyorders=$stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $args['typename']='PLEX';
+    $args['type']=44992;
+    $args['orderset']=$orderset;
+    $args['buyorders']=$buyorders;
+    $args['sellorders']=$sellorders;
+    return $this->renderer->render($response, 'type.phtml', $args);
 });
 
 $app->get("/api/orderset", function ($request, $response)  use ($app) {
