@@ -17,6 +17,7 @@ import json
 import os
 import shutil
 import base64
+import atexit
 
 import gzip
 import glob
@@ -29,6 +30,71 @@ import logging
 
 REQUEST_TIMEOUT = 30
 LOG_RETENTION_DAYS = 7
+
+# Exit code meaning "ESI is unhealthy, nothing was published, try next run".
+# loadPrices.sh treats this as a clean skip (no Discord alert); the
+# checkFreshness canary is what alerts if it persists past 90 minutes.
+EXIT_ESI_UNHEALTHY = 75
+
+ESI_STATUS_URL = 'https://esi.evetech.net/meta/status'
+REGION_ORDERS_ROUTE = '/markets/{region_id}/orders'
+STRUCTURE_ORDERS_ROUTE = '/markets/structures/{structure_id}'
+
+# Back off (pausing new requests until the window resets) once ESI's error
+# budget drops to this many remaining errors, rather than running into 420s.
+ERROR_LIMIT_FLOOR = 20
+# Hard cap on the whole fetch phase. Runs are 30 min apart; past this we give
+# up rather than publish late or pile up behind the flock.
+FETCH_DEADLINE_SECONDS = 20 * 60
+
+# Shared throttle state: wall-clock time before which no new request batch is sent.
+throttle = {'pause_until': 0.0}
+
+
+class ESIUnhealthy(Exception):
+    pass
+
+
+def noteRateHeaders(resp):
+    """Update the shared pause from ESI's error-limit / rate-limit headers."""
+    h = resp.headers
+    pause = 0
+    try:
+        if resp.status_code in (420, 429):
+            pause = int(h.get('Retry-After') or h.get('X-ESI-Error-Limit-Reset') or 60)
+        elif 'X-ESI-Error-Limit-Remain' in h and int(h['X-ESI-Error-Limit-Remain']) <= ERROR_LIMIT_FLOOR:
+            pause = int(h.get('X-ESI-Error-Limit-Reset') or 60)
+    except ValueError:
+        pause = 60
+    if pause > 0:
+        until = time.time() + pause + 1
+        if until > throttle['pause_until']:
+            logging.warning("ESI error/rate limit hit (status {}, remain {}); pausing new requests for {}s".format(
+                resp.status_code, h.get('X-ESI-Error-Limit-Remain'), pause + 1))
+            throttle['pause_until'] = until
+
+
+def waitForThrottle(deadline):
+    wait = throttle['pause_until'] - time.time()
+    if wait > 0:
+        if time.time() + wait > deadline:
+            raise ESIUnhealthy('error-limit pause of {:.0f}s would pass the fetch deadline'.format(wait))
+        logging.warning("Waiting {:.0f}s for ESI error limit to reset".format(wait))
+        time.sleep(wait)
+
+
+def getESIStatus(useragent, compatdate):
+    """Return {route path: status} for GET routes from ESI's /meta/status
+    (the API behind developers.eveonline.com/status), or None if it can't be
+    fetched. The caller treats None as "ESI is down"."""
+    try:
+        r = requests.get(ESI_STATUS_URL, headers={'User-Agent': useragent, 'X-Compatibility-Date': compatdate},
+                         timeout=REQUEST_TIMEOUT)
+        r.raise_for_status()
+        return {x['path']: x['status'] for x in r.json()['routes'] if x.get('method') == 'GET'}
+    except Exception as e:
+        logging.error("Could not fetch ESI status ({})".format(e))
+        return None
 
 def setupLogging(debug=False):
     today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
@@ -53,6 +119,7 @@ def processData(result,orderwriter,ordersetid,connection,orderTable):
     
     try:
         resp=result.result()
+        noteRateHeaders(resp)
         regionid=result.region
         logging.info('Process {} {} {} {}'.format(resp.status_code,result.url,result.retry,result.region))
         if resp.status_code==200:
@@ -63,6 +130,7 @@ def processData(result,orderwriter,ordersetid,connection,orderTable):
                     if not result.structure and int(order['location_id'])>100000000 and order['is_buy_order']:
                         pass
                     else:
+                        ordersWritten['count']+=1
                         orderwriter.writerow([order['order_id'],
                                             order['type_id'],
                                             order['issued'],
@@ -100,10 +168,12 @@ def processData(result,orderwriter,ordersetid,connection,orderTable):
         elif resp.status_code==404:
             logging.error("404 status. {} returned {}".format(resp.url,resp.status_code))
             return {'retry':4}
-        elif resp.status_code==420:
-            logging.error("420 status. sleeping for 60.  {} returned {} on retry {}".format(resp.url,resp.status_code,result.retry))
-            time.sleep(60)
-            return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
+        elif resp.status_code in (420,429):
+            # Throttled, not a real attempt: requeue at the same retry count.
+            # The pause itself is applied once, before the next batch (see
+            # noteRateHeaders/waitForThrottle), not per response.
+            logging.error("{} status (throttled). {} will be retried after the pause".format(resp.status_code,resp.url))
+            return {'retry':result.retry,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
         else:
             logging.error("Non 200 status. {} returned {} on retry {}".format(resp.url,resp.status_code,result.retry))
             return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
@@ -126,6 +196,67 @@ def getData(requestsConnection,url,retry,page,region,structure):
     future.region=region
     future.structure=structure
     return future
+
+
+ordersWritten = {'count': 0}
+
+
+def fetchAll(session,urls,maxtries,orderwriter,ordersetid,connection,orderTable,deadline):
+    """Fetch every url (following pagination), retrying failed pages up to
+    maxtries attempts in total with a short backoff between rounds, and
+    honouring ESI's error limit. Returns the list of pages that never
+    succeeded. Raises ESIUnhealthy if the deadline passes."""
+    failed=[]
+    while len(urls)>0:
+        if time.time() > deadline:
+            raise ESIUnhealthy('fetch deadline passed with {} page(s) outstanding'.format(len(urls)))
+        waitForThrottle(deadline)
+        maxretry=max(u['retry'] for u in urls)
+        if maxretry>0:
+            backoff=min(5*(2**(maxretry-1)),30)
+            logging.warning("Backing off {}s before retry round {}".format(backoff,maxretry))
+            time.sleep(backoff)
+        futures=[]
+        logging.warning("Loop restarting {} ({} requests)".format(ordersetid,len(urls)));
+        for url in urls:
+            logging.info('URL:{}  Retry:{} page:{}'.format(url['url'],url['retry'],url['page']));
+            futures.append(getData(session,url['url'],url['retry'],url['page'],url['region'],url['structure']))
+        urls=[]
+        for result in as_completed(futures):
+            if result.cancelled():
+                continue
+            presult=processData(result,orderwriter,ordersetid,connection,orderTable)
+            if presult['retry'] == 0 and presult['url'] is not None:
+                logging.info('{} has more pages. {}'.format(result.url,presult['retry']))
+                urls.append(presult)
+            elif 0 < presult['retry'] < maxtries:
+                urls.append(presult)
+                logging.info("adding {} to retry {}".format(result.url,presult['retry']))
+            elif presult['retry'] == maxtries:
+                failed.append(presult)
+            # retry > maxtries is the 403/404 "don't retry" marker
+            if throttle['pause_until'] > time.time():
+                # Stop sending the rest of this batch into the error limit;
+                # requeue anything not yet started at its current retry count.
+                for f in futures:
+                    if f.cancel():
+                        urls.append({'retry':f.retry,'url':f.url,'region':f.region,'page':f.page,'structure':f.structure})
+    return failed
+
+
+def esiUnhealthyExit(reason):
+    """Exit with EXIT_ESI_UNHEALTHY. The 'ESI-UNHEALTHY:' stderr line lands in
+    the loadPrices log, and loadPrices.sh puts it in the Discord report."""
+    logging.error("ESI unhealthy, nothing published: {}".format(reason))
+    print("ESI-UNHEALTHY: {}".format(reason), file=sys.stderr, flush=True)
+    sys.exit(EXIT_ESI_UNHEALTHY)
+
+
+def abortRun(trans,reason):
+    """Roll back the orderset (nothing is published) and exit with
+    EXIT_ESI_UNHEALTHY. The atexit hook removes the staging CSV."""
+    trans.rollback()
+    esiUnhealthyExit(reason)
 
 
 if __name__ == "__main__":
@@ -199,6 +330,15 @@ if __name__ == "__main__":
     # evesde.staStations and gets skipped by the loop above unless added explicitly.
     urls.append({'url':"https://esi.evetech.net/markets/19000001/orders/?order_type=all&datasource=tranquility&page=",'retry':0,'page':1,'region':19000001,'structure':0})
 
+    deadline = time.time() + FETCH_DEADLINE_SECONDS
+    esistatus = getESIStatus(useragent, compatdate)
+    if esistatus is None:
+        esiUnhealthyExit("ESI status endpoint {} unreachable; assuming ESI is down".format(ESI_STATUS_URL))
+    logging.warning("ESI status: region orders {}, structure orders {}".format(
+        esistatus.get(REGION_ORDERS_ROUTE), esistatus.get(STRUCTURE_ORDERS_ROUTE)))
+    if esistatus.get(REGION_ORDERS_ROUTE) == 'Down':
+        esiUnhealthyExit("ESI status reports {} as Down".format(REGION_ORDERS_ROUTE))
+
     trans = connection.begin()
 
     connection.execute(orderSet.insert(),downloaded=datetime.datetime.now().isoformat())
@@ -210,71 +350,93 @@ if __name__ == "__main__":
 
 
     csvpath = '/tmp/orderset-{}.csv'.format(ordersetid)
+
+    def _cleanup_csv(path=csvpath):
+        # Only still present if the run aborted before the final shutil.move
+        # to /opt/orderbooks/ at the end of a successful run.
+        if os.path.exists(path):
+            logging.warning("Removing incomplete staging file {} after failed run".format(path))
+            os.remove(path)
+    atexit.register(_cleanup_csv)
+
     csvfd = os.open(csvpath, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
     with os.fdopen(csvfd, 'w') as csvfile:
         orderwriter = csv.writer(csvfile,quoting=csv.QUOTE_MINIMAL,delimiter="\t")
-        # Loop through the urls in batches
-        while len(urls)>0:
-            futures=[]
-            logging.warning("Loop restarting {}".format(ordersetid));
-            for url in urls:
-                logging.info('URL:{}  Retry:{} page:{}'.format(url['url'],url['retry'],url['page']));
-                futures.append(getData(session,url['url'],url['retry'],url['page'],url['region'],url['structure']))
-            urls=[]
-            for result in as_completed(futures):
-                presult=processData(result,orderwriter,ordersetid,connection,orderTable)
-                if presult['retry']==1 or presult['retry']==2:
-                    urls.append(presult)
-                    logging.info("adding {} to retry {}".format(result.url,presult['retry']))
-                if presult['retry'] == 0 and presult['url'] is not None:
-                    logging.info('{} has more pages. {}'.format(result.url,presult['retry']))
-                    urls.append(presult)
+        try:
+            failed = fetchAll(session,urls,3,orderwriter,ordersetid,connection,orderTable,deadline)
+        except ESIUnhealthy as e:
+            abortRun(trans,'region fetch aborted: {}'.format(e))
+        if failed:
+            # A missing region silently skews the region and universe
+            # aggregates, so a partial region set is never published.
+            abortRun(trans,'{} region page(s) failed after retries, e.g. {}'.format(
+                len(failed),', '.join('{}p{}'.format(f['region'],f['page']) for f in failed[:5])))
+        urls=[]
         
-        # Get authorization
-        token=clientid+':'+secret
-        message_bytes = token.encode('ascii')
-        base64_bytes = base64.b64encode(message_bytes)
-        base64_message = base64_bytes.decode('ascii')
-        headers = {'Authorization':'Basic '+ base64_message,'User-Agent':useragent,"Content-Type": "application/x-www-form-urlencoded"}
-        query = {'grant_type':'refresh_token','refresh_token':refreshtoken}
-        r = requests.post('https://login.eveonline.com/v2/oauth/token',data=query,headers=headers,timeout=REQUEST_TIMEOUT)
-        response = r.json()
-        accesstoken = response['access_token']
-        refreshtokennew = response['refresh_token']
-        if refreshtokennew != refreshtoken:
-            cfgfile = open(inifile,'w')
-            config.set('oauth','refreshtoken',refreshtokennew)
-            config.write(cfgfile)
-            cfgfile.close()
+        if esistatus.get(STRUCTURE_ORDERS_ROUTE) == 'Down':
+            logging.warning("ESI reports {} as Down; skipping structure markets this run".format(STRUCTURE_ORDERS_ROUTE))
+            fetchStructures = False
+        else:
+            fetchStructures = True
+        if fetchStructures:
+            # Get authorization
+            token=clientid+':'+secret
+            message_bytes = token.encode('ascii')
+            base64_bytes = base64.b64encode(message_bytes)
+            base64_message = base64_bytes.decode('ascii')
+            headers = {'Authorization':'Basic '+ base64_message,'User-Agent':useragent,"Content-Type": "application/x-www-form-urlencoded"}
+            query = {'grant_type':'refresh_token','refresh_token':refreshtoken}
 
-        logging.debug("Access Token {}".format(accesstoken))
-        logging.debug("refresh Token {}".format(refreshtokennew))
+            response = None
+            for ssoretry in range(3):
+                try:
+                    r = requests.post('https://login.eveonline.com/v2/oauth/token',data=query,headers=headers,timeout=REQUEST_TIMEOUT)
+                    response = r.json()
+                    if 'access_token' not in response:
+                        raise ValueError('SSO response missing access_token: {}'.format(response))
+                    break
+                except (requests.exceptions.RequestException, ValueError) as e:
+                    logging.error("SSO token refresh failed on attempt {}: {}".format(ssoretry+1,e))
+                    response = None
+                    if ssoretry < 2:
+                        time.sleep(5)
+            if response is None:
+                raise RuntimeError('SSO token refresh failed after 3 attempts; aborting before structure market fetch')
+
+            accesstoken = response['access_token']
+            refreshtokennew = response['refresh_token']
+            if refreshtokennew != refreshtoken:
+                cfgfile = open(inifile,'w')
+                config.set('oauth','refreshtoken',refreshtokennew)
+                config.write(cfgfile)
+                cfgfile.close()
+
+            logging.debug("Access Token {}".format(accesstoken))
+            logging.debug("refresh Token {}".format(refreshtokennew))
 
 
 
 
-        session.headers.update({'Authorization':'Bearer '+accesstoken,'X-Compatibility-Date':compatdate});
+            session.headers.update({'Authorization':'Bearer '+accesstoken,'X-Compatibility-Date':compatdate});
         
-        results=connection.execute('select "stationID",mss."regionID" from evesde."staStations" sta join evesde."mapSolarSystems" mss on mss."solarSystemID"=sta."solarSystemID"  where "stationID">100000000').fetchall()
-        for result in results:
-            urls.append({'url':"https://esi.evetech.net/markets/structures/{}/?&datasource=tranquility&page=".format(result[0]),'retry':0,'page':1,'region':result[1],'structure':1})
+            results=connection.execute('select "stationID",mss."regionID" from evesde."staStations" sta join evesde."mapSolarSystems" mss on mss."solarSystemID"=sta."solarSystemID"  where "stationID">100000000').fetchall()
+            for result in results:
+                urls.append({'url':"https://esi.evetech.net/markets/structures/{}/?&datasource=tranquility&page=".format(result[0]),'retry':0,'page':1,'region':result[1],'structure':1})
         
         
-        while len(urls)>0:
-            futures=[]
-            logging.warning("Loop restarting {}".format(ordersetid));
-            for url in urls:
-                logging.info('URL:{}  Retry:{} page:{}'.format(url['url'],url['retry'],url['page']));
-                futures.append(getData(session,url['url'],url['retry'],url['page'],url['region'],url['structure']))
-            urls=[]
-            for result in as_completed(futures):
-                presult=processData(result,orderwriter,ordersetid,connection,orderTable)
-                if presult['retry']==1:
-                    urls.append(presult)
-                    logging.info("adding {} to retry {}".format(result.url,presult['retry']))
-                if presult['retry'] == 0 and presult['url'] is not None:
-                    logging.info('{} has more pages. {}'.format(result.url,presult['retry']))
-                    urls.append(presult)
+            try:
+                failed = fetchAll(session,urls,2,orderwriter,ordersetid,connection,orderTable,deadline)
+            except ESIUnhealthy as e:
+                # Region data is complete at this point; structures only add
+                # structure buy orders, so losing them is a degraded-but-usable set.
+                logging.error("Structure fetch aborted ({}); publishing without remaining structure orders".format(e))
+                failed = None
+            if failed:
+                logging.warning("{} structure page(s) failed after retries; their buy orders are missing from orderset {}".format(len(failed),ordersetid))
+
+    if ordersWritten['count'] == 0:
+        abortRun(trans,'no orders fetched at all')
+    logging.warning("{} orders fetched for orderset {}".format(ordersWritten['count'],ordersetid))
 
     logging.warning("Loading Data File {}".format(ordersetid));
     connection.execute("""copy orders_{}("orderID","typeID",issued,buy,volume,"volumeEntered","minVolume",price,"stationID",range,duration,region,"orderSet") from '/tmp/orderset-{}.csv'""".format(int((int(ordersetid)/100)%10),ordersetid))
