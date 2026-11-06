@@ -97,16 +97,16 @@ def getESIStatus(useragent, compatdate):
         return None
 
 def setupLogging(debug=False):
-    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    today = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
     logfile = 'logs/aggloader-esi-{}.log'.format(today)
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(filename=logfile,level=level,format='%(asctime)s %(levelname)s %(message)s')
 
-    cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=LOG_RETENTION_DAYS)
+    cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=LOG_RETENTION_DAYS)
     for path in glob.glob('logs/aggloader-esi-*.log'):
         datestr = os.path.basename(path)[len('aggloader-esi-'):-len('.log')]
         try:
-            filedate = datetime.datetime.strptime(datestr,'%Y-%m-%d')
+            filedate = datetime.datetime.strptime(datestr,'%Y-%m-%d').replace(tzinfo=datetime.UTC)
         except ValueError:
             continue
         if filedate < cutoff:
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     connection = engine.connect()
     
 
-    compatdate = (datetime.datetime.utcnow() - datetime.timedelta(hours=11)).strftime('%Y-%m-%d')
+    compatdate = (datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=11)).strftime('%Y-%m-%d')
 
     session = FuturesSession(max_workers=reqs_num_workers)
     session.headers.update({'User-Agent':useragent,'X-Compatibility-Date':compatdate});
@@ -345,7 +345,8 @@ if __name__ == "__main__":
         connection.commit()
     trans = connection.begin()
 
-    connection.execute(orderSet.insert(),{'downloaded':datetime.datetime.now().isoformat()})
+    # UTC, stored without an offset: the column is timestamp without time zone.
+    connection.execute(orderSet.insert(),{'downloaded':datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()})
 
     result=connection.execute(text("select currval('orderset_id_seq')")).fetchone()
 
@@ -807,7 +808,8 @@ if __name__ == "__main__":
     redisdb.set("fp-sell",json.dumps(result[0]));
     result=connection.execute(text("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=true group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid))).fetchone()
     redisdb.set("fp-buy",json.dumps(result[0]));
-    redisdb.set("fp-lastupdate",datetime.datetime.utcnow().isoformat())
+    # UTC without an offset, the format the site (and the PHP rollback) parses.
+    redisdb.set("fp-lastupdate",datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat())
     logging.warning("Complete {}".format(ordersetid))
 
     orderbookpath = """/opt/orderbooks/orderset-{}.csv""".format(ordersetid)
