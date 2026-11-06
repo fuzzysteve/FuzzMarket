@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, MetaData, Table, Index
+from sqlalchemy import create_engine, Column, MetaData, Table, Index, text
 from sqlalchemy import Integer, String, Text, Float, Boolean, BigInteger, Numeric, SmallInteger, DateTime
 import time
 import requests
@@ -321,7 +321,7 @@ if __name__ == "__main__":
 
     urls=[]
 
-    regionids = connection.execute('select distinct "regionID" from evesde."staStations" where "stationID"<100000000 order by 1').fetchall()
+    regionids = connection.execute(text('select distinct "regionID" from evesde."staStations" where "stationID"<100000000 order by 1')).fetchall()
     for row in regionids:
         regionid = row[0]
         urls.append({'url':"https://esi.evetech.net/markets/{}/orders/?order_type=all&datasource=tranquility&page=".format(regionid),'retry':0,'page':1,'region':regionid,'structure':0})
@@ -339,11 +339,15 @@ if __name__ == "__main__":
     if esistatus.get(REGION_ORDERS_ROUTE) == 'Down':
         esiUnhealthyExit("ESI status reports {} as Down".format(REGION_ORDERS_ROUTE))
 
+    # SQLAlchemy 2 starts a transaction on the first statement (the region
+    # list above). End it so the orderset gets a transaction of its own.
+    if connection.in_transaction():
+        connection.commit()
     trans = connection.begin()
 
-    connection.execute(orderSet.insert(),downloaded=datetime.datetime.now().isoformat())
+    connection.execute(orderSet.insert(),{'downloaded':datetime.datetime.now().isoformat()})
 
-    result=connection.execute("select currval('orderset_id_seq')").fetchone()
+    result=connection.execute(text("select currval('orderset_id_seq')")).fetchone()
 
     ordersetid=result[0]
 
@@ -419,7 +423,7 @@ if __name__ == "__main__":
 
             session.headers.update({'Authorization':'Bearer '+accesstoken,'X-Compatibility-Date':compatdate});
         
-            results=connection.execute('select "stationID",mss."regionID" from evesde."staStations" sta join evesde."mapSolarSystems" mss on mss."solarSystemID"=sta."solarSystemID"  where "stationID">100000000').fetchall()
+            results=connection.execute(text('select "stationID",mss."regionID" from evesde."staStations" sta join evesde."mapSolarSystems" mss on mss."solarSystemID"=sta."solarSystemID"  where "stationID">100000000')).fetchall()
             for result in results:
                 urls.append({'url':"https://esi.evetech.net/markets/structures/{}/?&datasource=tranquility&page=".format(result[0]),'retry':0,'page':1,'region':result[1],'structure':1})
         
@@ -439,7 +443,7 @@ if __name__ == "__main__":
     logging.warning("{} orders fetched for orderset {}".format(ordersWritten['count'],ordersetid))
 
     logging.warning("Loading Data File {}".format(ordersetid));
-    connection.execute("""copy orders_{}("orderID","typeID",issued,buy,volume,"volumeEntered","minVolume",price,"stationID",range,duration,region,"orderSet") from '/tmp/orderset-{}.csv'""".format(int((int(ordersetid)/100)%10),ordersetid))
+    connection.execute(text("""copy orders_{}("orderID","typeID",issued,buy,volume,"volumeEntered","minVolume",price,"stationID",range,duration,region,"orderSet") from '/tmp/orderset-{}.csv'""".format(int((int(ordersetid)/100)%10),ordersetid)))
     logging.warning("Complete load {}".format(ordersetid));
     trans.commit()
     
@@ -461,8 +465,10 @@ if __name__ == "__main__":
     sell['lastsum']=sell.groupby('what')['cumsum'].shift(1)
     sell.fillna(0,inplace=True)
     sell['applies']=numpy.where(sell['cumsum']<=sell['fivepercent'], sell['volume'], sell['fivepercent']-sell['lastsum'])
-    num = sell._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave sell unchanged.
+    num = sell._get_numeric_data().columns
+    sell[num] = sell[num].clip(lower=0)
     sell['applies']=sell['applies'].mask(sell.groupby('what')['applies'].transform('sum')==0, 0.01)
     sell['weight']=sell['volume'].mask(sell.groupby('what')['volume'].transform('sum')==0, 0.01)
     logging.warning("Buy Math running {}".format(ordersetid));
@@ -473,8 +479,10 @@ if __name__ == "__main__":
     buy['lastsum']=buy.groupby('what')['cumsum'].shift(1)
     buy.fillna(0,inplace=True)
     buy['applies']=numpy.where(buy['cumsum']<=buy['fivepercent'], buy['volume'], buy['fivepercent']-buy['lastsum'])
-    num = buy._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave buy unchanged.
+    num = buy._get_numeric_data().columns
+    buy[num] = buy[num].clip(lower=0)
     buy['applies']=buy['applies'].mask(buy.groupby('what')['applies'].transform('sum')==0, 0.01)
     buy['weight']=buy['volume'].mask(buy.groupby('what')['volume'].transform('sum')==0, 0.01)
     
@@ -549,8 +557,10 @@ if __name__ == "__main__":
     sell['lastsum']=sell.groupby('what')['cumsum'].shift(1)
     sell.fillna(0,inplace=True)
     sell['applies']=numpy.where(sell['cumsum']<=sell['fivepercent'], sell['volume'], sell['fivepercent']-sell['lastsum'])
-    num = sell._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave sell unchanged.
+    num = sell._get_numeric_data().columns
+    sell[num] = sell[num].clip(lower=0)
     sell['applies']=sell['applies'].mask(sell.groupby('what')['applies'].transform('sum')==0, 0.01)
     sell['weight']=sell['volume'].mask(sell.groupby('what')['volume'].transform('sum')==0, 0.01)
     logging.warning("Buy Math running {}".format(ordersetid));
@@ -561,8 +571,10 @@ if __name__ == "__main__":
     buy['lastsum']=buy.groupby('what')['cumsum'].shift(1)
     buy.fillna(0,inplace=True)
     buy['applies']=numpy.where(buy['cumsum']<=buy['fivepercent'], buy['volume'], buy['fivepercent']-buy['lastsum'])
-    num = buy._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave buy unchanged.
+    num = buy._get_numeric_data().columns
+    buy[num] = buy[num].clip(lower=0)
     buy['applies']=buy['applies'].mask(buy.groupby('what')['applies'].transform('sum')==0, 0.01)
     buy['weight']=buy['volume'].mask(buy.groupby('what')['volume'].transform('sum')==0, 0.01)
 
@@ -632,8 +644,10 @@ if __name__ == "__main__":
     sell['lastsum']=sell.groupby('what')['cumsum'].shift(1)
     sell.fillna(0,inplace=True)
     sell['applies']=numpy.where(sell['cumsum']<=sell['fivepercent'], sell['volume'], sell['fivepercent']-sell['lastsum'])
-    num = sell._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave sell unchanged.
+    num = sell._get_numeric_data().columns
+    sell[num] = sell[num].clip(lower=0)
     sell['applies']=sell['applies'].mask(sell.groupby('what')['applies'].transform('sum')==0, 0.01)
     sell['weight']=sell['volume'].mask(sell.groupby('what')['volume'].transform('sum')==0, 0.01)
     logging.warning("Buy Math running {}".format(ordersetid));
@@ -644,8 +658,10 @@ if __name__ == "__main__":
     buy['lastsum']=buy.groupby('what')['cumsum'].shift(1)
     buy.fillna(0,inplace=True)
     buy['applies']=numpy.where(buy['cumsum']<=buy['fivepercent'], buy['volume'], buy['fivepercent']-buy['lastsum'])
-    num = buy._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave buy unchanged.
+    num = buy._get_numeric_data().columns
+    buy[num] = buy[num].clip(lower=0)
     buy['applies']=buy['applies'].mask(buy.groupby('what')['applies'].transform('sum')==0, 0.01)
     buy['weight']=buy['volume'].mask(buy.groupby('what')['volume'].transform('sum')==0, 0.01)
 
@@ -715,8 +731,10 @@ if __name__ == "__main__":
     sell['lastsum']=sell.groupby('what')['cumsum'].shift(1)
     sell.fillna(0,inplace=True)
     sell['applies']=numpy.where(sell['cumsum']<=sell['fivepercent'], sell['volume'], sell['fivepercent']-sell['lastsum'])
-    num = sell._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave sell unchanged.
+    num = sell._get_numeric_data().columns
+    sell[num] = sell[num].clip(lower=0)
     sell['applies']=sell['applies'].mask(sell.groupby('what')['applies'].transform('sum')==0, 0.01)
     sell['weight']=sell['volume'].mask(sell.groupby('what')['volume'].transform('sum')==0, 0.01)
     logging.warning("Buy Math running {}".format(ordersetid));
@@ -727,8 +745,10 @@ if __name__ == "__main__":
     buy['lastsum']=buy.groupby('what')['cumsum'].shift(1)
     buy.fillna(0,inplace=True)
     buy['applies']=numpy.where(buy['cumsum']<=buy['fivepercent'], buy['volume'], buy['fivepercent']-buy['lastsum'])
-    num = buy._get_numeric_data()
-    num[num < 0] = 0
+    # Assign back explicitly: with copy-on-write (pandas 3) the numeric subset
+    # is a copy, so writing into it would leave buy unchanged.
+    num = buy._get_numeric_data().columns
+    buy[num] = buy[num].clip(lower=0)
     buy['applies']=buy['applies'].mask(buy.groupby('what')['applies'].transform('sum')==0, 0.01)
     buy['weight']=buy['volume'].mask(buy.groupby('what')['volume'].transform('sum')==0, 0.01)
 
@@ -783,9 +803,9 @@ if __name__ == "__main__":
     
     
     logging.warning("Storing some stats for the front page {}".format(ordersetid));
-    result=connection.execute("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=false group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid)).fetchone()
+    result=connection.execute(text("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=false group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid))).fetchone()
     redisdb.set("fp-sell",json.dumps(result[0]));
-    result=connection.execute("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=true group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid)).fetchone()
+    result=connection.execute(text("""select array_to_json(array_agg(t)) from (select coun,"stationName",orders."stationID",vol from (select "stationID",count(*) coun,sum(volume) vol from orders where "orderSet"={} and buy=true group by "stationID" order by count(*)) orders join evesde."staStations" on orders."stationID"="staStations"."stationID" order by coun desc limit 10) t""".format(ordersetid))).fetchone()
     redisdb.set("fp-buy",json.dumps(result[0]));
     redisdb.set("fp-lastupdate",datetime.datetime.utcnow().isoformat())
     logging.warning("Complete {}".format(ordersetid))

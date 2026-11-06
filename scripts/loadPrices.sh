@@ -29,7 +29,7 @@ set -o pipefail
 
 echo "=== $(date -Is) starting ==="
 
-source ./pricegetter/bin/activate
+source ./.venv/bin/activate
 # Exit 75 = ESI unhealthy: the status endpoint is unreachable or reports
 # region orders Down, region pages failed after retries, or the fetch
 # deadline passed. The loader has already rolled back and published nothing.
