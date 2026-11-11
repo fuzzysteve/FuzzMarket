@@ -2,3 +2,9 @@
 /logs/*
 !/logs/README.md
 /src/secretreal.php
+
+# Published by /opt/pricegetter/loadPrices.sh on every load; generated data, not source.
+/public/aggregatecsv.csv.gz
+# Separate repo (github.com/fuzzysteve/flask-marketdata), checked out here.
+/pyapp/
+__pycache__/
