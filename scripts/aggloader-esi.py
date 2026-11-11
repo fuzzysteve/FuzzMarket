@@ -177,8 +177,11 @@ def processData(result,orderwriter,ordersetid,connection,orderTable):
         else:
             logging.error("Non 200 status. {} returned {} on retry {}".format(resp.url,resp.status_code,result.retry))
             return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
-    except requests.exceptions.ConnectionError as e:
-        logging.error(e)
+    except requests.exceptions.RequestException as e:
+        # Any transport-level failure (connect/read timeout, connection reset,
+        # broken chunked response) is retried like a 5xx. Catching only
+        # ConnectionError let a single ReadTimeout crash the whole run (2026-11-11 10:06).
+        logging.error("Request failed ({}) for {} on retry {}: {}".format(type(e).__name__, result.fullurl, result.retry, e))
         return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
     return {'retry':result.retry+1,'url':result.url,'region':result.region,'page':result.page,'structure':result.structure}
     
