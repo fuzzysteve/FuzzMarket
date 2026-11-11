@@ -1,6 +1,22 @@
 <?php
 // Routes
 
+// Whole-table SDE lookups (they only change when the SDE is updated) are cached
+// in Redis for an hour, so appraisal requests don't rebuild them from Postgres.
+function cachedLookup($key, callable $build) {
+    $redis = new Predis\Client();
+    $cached = $redis->get($key);
+    if ($cached !== null) {
+        $value = unserialize($cached, ['allowed_classes' => false]);
+        if (is_array($value)) {
+            return $value;
+        }
+    }
+    $value = $build();
+    $redis->setex($key, 3600, serialize($value));
+    return $value;
+}
+
 $app->get('/appraisal/',function ($request, $response, $args) {
     return $this->renderer->render($response, 'appraisal.phtml', $args);    
 });
@@ -13,15 +29,18 @@ $app->post('/appraisal/',function ($request, $response, $args) {
     }
 
     $db = $this->db;
-    $sql=<<<EOS
+    $typeidlookup = cachedLookup('sde:typeidlookup', function () use ($db) {
+        $sql=<<<EOS
 select lower("typeName") "typeName","typeID" from evesde."invTypes" where published=true and "marketGroupID" is not null
 EOS;
-    $stmt = $db->prepare($sql);
-    $stmt->execute();
-    $typeidlookup=array();
-    while ($row = $stmt->fetchObject()) {
-            $typeidlookup[$row->typeName]=$row->typeID;
-    }
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $typeidlookup=array();
+        while ($row = $stmt->fetchObject()) {
+                $typeidlookup[$row->typeName]=$row->typeID;
+        }
+        return $typeidlookup;
+    });
     $inventory=array();
 
     if (array_key_exists('pasteblock',$_POST)) {
@@ -151,19 +170,25 @@ EOS;
 $app->get('/appraisal/{region:[0-9]+}/{identifier}[/{json}]',function ($request, $response, $args) {
 
     $db = $this->db;
-    $sql=<<<EOS
+    $typenamelookup = cachedLookup('sde:typenamelookup', function () use ($db) {
+        $sql=<<<EOS
 select "typeName","typeID",volume from evesde."invTypes" where published=true and "marketGroupID" is not null
 EOS;
-    $stmt = $db->prepare($sql);
-    $stmt->execute();
-    $typenamelookup=array();
-    while ($row = $stmt->fetchObject()) {
-            $typenamelookup[$row->typeID]=array("typeName"=>$row->typeName,"volume"=>$row->volume);
-    }
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $typenamelookup=array();
+        while ($row = $stmt->fetchObject()) {
+                $typenamelookup[$row->typeID]=array("typeName"=>$row->typeName,"volume"=>$row->volume);
+        }
+        return $typenamelookup;
+    });
     $sql='select "regionName","regionID" from evesde."mapRegions" where "regionID"=:region';
     $stmt = $db->prepare($sql);
     $stmt->execute(array(":region"=>$args['region']));
     $row = $stmt->fetchObject();
+    if (!$row) {
+        throw new \Slim\Exception\NotFoundException($request, $response);
+    }
     $regionName=$row->regionName;
     $regionid=$row->regionID;
 
@@ -174,9 +199,12 @@ EOS;
     $stmt = $db->prepare($sql);
     $stmt->execute(array(":id"=>$args['identifier']));
     $row = $stmt->fetchObject();
+    if (!$row) {
+        throw new \Slim\Exception\NotFoundException($request, $response);
+    }
     $list=$row->list;
 
-    $items=json_decode($list);
+    $items=json_decode($list) ?: array();
     
     $redis = new Predis\Client();
 
@@ -187,18 +215,29 @@ EOS;
     $total['psell']=0;
     $total['msell']=0;
     $total['volume']=0;
+    // Fetch all buy/sell keys with MGET (in chunks) rather than one GET round trip per key
+    $keys=array();
     foreach ($items as $item=>$quantity) {
-        $buydetails=explode("|",$redis->get($regionid.'|'.$item."|true"));
-        $selldetails=explode("|",$redis->get($regionid.'|'.$item."|false"));
+        $keys[]=$regionid.'|'.$item."|true";
+        $keys[]=$regionid.'|'.$item."|false";
+    }
+    $redisvalues=array();
+    foreach (array_chunk($keys, 1000) as $chunk) {
+        $redisvalues=array_merge($redisvalues, $redis->mget($chunk));
+    }
+    $i=0;
+    foreach ($items as $item=>$quantity) {
+        $buydetails=explode("|",$redisvalues[$i++] ?? '');
+        $selldetails=explode("|",$redisvalues[$i++] ?? '');
         $line=array();
         $line['typeid']=$item;
-        $line['typename']=$typenamelookup[$item]['typeName'];
+        $line['typename']=$typenamelookup[$item]['typeName'] ?? '';
         $line['quantity']=$quantity;
-        $line['pbuy']=$quantity*$buydetails[7];
-        $line['psell']=$quantity*$selldetails[7];
-        $line['mbuy']=$quantity*$buydetails[1];
-        $line['msell']=$quantity*$selldetails[2];
-        $line['volume']=$quantity*$typenamelookup[$item]['volume'];
+        $line['pbuy']=$quantity*($buydetails[7] ?? 0);
+        $line['psell']=$quantity*($selldetails[7] ?? 0);
+        $line['mbuy']=$quantity*($buydetails[1] ?? 0);
+        $line['msell']=$quantity*($selldetails[2] ?? 0);
+        $line['volume']=$quantity*($typenamelookup[$item]['volume'] ?? 0);
         $total['pbuy']+=$line['pbuy'];
         $total['mbuy']+=$line['mbuy'];
         $total['psell']+=$line['psell'];
@@ -244,17 +283,30 @@ $app->map(['GET', 'POST'],'/aggregates/',function ($request, $response, $args) {
         }
     }
     $ordertype=array("true"=>"buy","false"=>"sell");
+    $typelist=array();
+    $keys=array();
     foreach (explode(",",$types) as $type) {
         if ($type == '') {
             continue;
         }
+        $typelist[]=$type;
         foreach (array("true","false") as $buy) {
-            $values=$redis->get($region.'|'.$type."|".$buy);
+            $keys[]=$region.'|'.$type."|".$buy;
+        }
+    }
+    // Fetch all keys with MGET (in chunks) rather than one GET round trip per key
+    $redisvalues=array();
+    foreach (array_chunk($keys, 1000) as $chunk) {
+        $redisvalues=array_merge($redisvalues, $redis->mget($chunk));
+    }
+    $i=0;
+    foreach ($typelist as $type) {
+        foreach (array("true","false") as $buy) {
+            $values=$redisvalues[$i++];
             if ($values==''){
                 $values='|||||||';
             }
             $details=explode("|",$values);
-            #$details=explode("|",$redis->get($region.'|'.$type."|".$buy));
             if ($details[0]==""){
                 $details[0]=null;
             }
@@ -481,7 +533,7 @@ EOS;
 
     $result=array();
     $db=null;
-    $result['typename']=$nameres[0]['typeName'];
+    $result['typename']=$nameres[0]['typeName'] ?? '';
     $result['orderset']=$orderset;
     $result['buyorders']=$buyorders;
     $result['sellorders']=$sellorders;
@@ -543,7 +595,7 @@ EOS;
     $stmt->execute(array(":typeid"=>$args['type']));
     $nameres=$stmt->fetchAll(PDO::FETCH_ASSOC);
     $db=null;
-    $args['typename']=$nameres[0]['typeName'];
+    $args['typename']=$nameres[0]['typeName'] ?? '';
     $args['orderset']=$orderset;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
@@ -597,7 +649,7 @@ EOS;
 
 
     $db=null;
-    $args['typename']=$nameres[0]['typeName'];
+    $args['typename']=$nameres[0]['typeName'] ?? '';
     $args['orderset']=$orderset;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
@@ -650,7 +702,7 @@ EOS;
 
 
     $db=null;
-    $args['typename']=$nameres[0]['typeName'];
+    $args['typename']=$nameres[0]['typeName'] ?? '';
     $args['orderset']=$orderset;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
@@ -701,7 +753,7 @@ EOS;
 
 
     $db=null;
-    $args['typename']=$nameres[0]['typeName'];
+    $args['typename']=$nameres[0]['typeName'] ?? '';
     $args['orderset']=$orderset;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
@@ -789,7 +841,7 @@ EOS;
 
 
     $db=null;
-    $args['typename']=$nameres[0]['typeName'];
+    $args['typename']=$nameres[0]['typeName'] ?? '';
     $args['orderset']=$orderset;
     $args['buyorders']=$buyorders;
     $args['sellorders']=$sellorders;
@@ -798,6 +850,7 @@ EOS;
 
 
 $app->get('/authlogin', function ($request, $response, $args) {
+    session_start();
     include('/opt/web/market/src/secretreal.php');
     $state = bin2hex(random_bytes(16));
     $_SESSION['oauth_state'] = $state;
@@ -805,6 +858,7 @@ $app->get('/authlogin', function ($request, $response, $args) {
 });
 
 $app->get('/auth/updater',function ($request, $response, $args) {
+    session_start();
     include('/opt/web/market/src/secretreal.php');
     $code=$_GET['code'];
     $state=$_GET['state'];

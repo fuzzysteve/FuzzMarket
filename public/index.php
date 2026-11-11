@@ -11,7 +11,8 @@ if (PHP_SAPI == 'cli-server') {
 
 require __DIR__ . '/../vendor/autoload.php';
 
-session_start();
+// Sessions are started only in the routes that need them (/authlogin,
+// /auth/updater), so other responses stay cacheable and cookie-free.
 
 // Instantiate the app
 $settings = require __DIR__ . '/../src/settings.php';
