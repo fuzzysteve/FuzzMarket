@@ -24,7 +24,7 @@ set -o pipefail
 
 echo "=== $(date -Is) starting ==="
 
-source ./pricegetter/bin/activate
+source ./.venv/bin/activate
 python checkFreshness.py
 
 echo "=== $(date -Is) done ==="

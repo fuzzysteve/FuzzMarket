@@ -21,15 +21,15 @@ KEYS_TO_CHECK = [
 
 
 def setup_logging():
-    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    today = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
     logfile = 'logs/checkFreshness-{}.log'.format(today)
     logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
-    cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=LOG_RETENTION_DAYS)
+    cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=LOG_RETENTION_DAYS)
     for path in glob.glob('logs/checkFreshness-*.log'):
         datestr = os.path.basename(path)[len('checkFreshness-'):-len('.log')]
         try:
-            filedate = datetime.datetime.strptime(datestr, '%Y-%m-%d')
+            filedate = datetime.datetime.strptime(datestr, '%Y-%m-%d').replace(tzinfo=datetime.UTC)
         except ValueError:
             continue
         if filedate < cutoff:
