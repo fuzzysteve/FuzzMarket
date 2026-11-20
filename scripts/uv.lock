@@ -478,14 +478,14 @@ wheels = [
 
 [[package]]
 name = "url-normalize"
-version = "3.1.0"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/84/d3/af36d36d189cb33237732a7fe6bba2df08189ac8c5975dab0510d5c6a5f2/url_normalize-3.1.0.tar.gz", hash = "sha256:138912833c0005ec77e756ec220590f8971ff046227280790ceb00f5ab9d56b6", size = 30464, upload-time = "2026-10-29T15:44:39.183Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/1b/0651cd4dc1a2c0b81151a7f0a06ff171e324a2bce47b092121d75fbeb27c/url_normalize-4.0.0.tar.gz", hash = "sha256:52ad9004d6278ea4b581f1cf2f4d016c4873bf3d81fd749b7472ac0206355d05", size = 90053, upload-time = "2026-11-19T01:20:00.829Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/3d/ae9ba568240002f25d676df745208aec077767cd63e68cbb93bd2650c4ec/url_normalize-3.1.0-py3-none-any.whl", hash = "sha256:34c386c6b2dbde760eaaaa8542dc29995c75f2baf94acceee18e5b6b29579469", size = 18692, upload-time = "2026-10-29T15:44:37.875Z" },
+    { url = "https://files.pythonhosted.org/packages/90/69/b99d4032fd4a2984e7ec0756ef84c031f3cb7b909c2d3b592aa7b0bb7d57/url_normalize-4.0.0-py3-none-any.whl", hash = "sha256:dea616fc9c3d4c8bcd46fcaa783bb4e402b4f272789650919e473c5a86a7b3eb", size = 35372, upload-time = "2026-11-19T01:19:59.747Z" },
 ]
 
 [[package]]
