@@ -58,7 +58,7 @@ for citadel in citadellist:
     citadeldetails=client.get("https://esi.tech.ccp.is/latest/universe/structures/{}/?datasource=tranquility".format(citadel),headers=headers)
     if citadeldetails.status_code==200:
         cjson=citadeldetails.json()
-        if cjson['type_id'] in [35826,35827,35833,35834,40340]:
+        if cjson['type_id'] in [35826,35827,35833,35834,35836,40340,47512,47513,47514,47515,47516]:
             citadelmarket=client.get("https://esi.tech.ccp.is/latest/markets/structures/{}/?page=1&datasource=tranquility".format(citadel))
             if citadelmarket.status_code==200:
                 connection.execute(staStations.insert(),stationID=citadel,stationName=cjson['name'],stationTypeID=cjson['type_id'],solarSystemID=cjson['solar_system_id'],x=cjson['position']['x'],y=cjson['position']['y'],z=cjson['position']['z'])
